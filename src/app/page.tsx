@@ -104,8 +104,8 @@ export default function Home() {
               <Zap className="h-3 w-3" />
               IA
             </span>
-            <button
-              type="button"
+            <Link
+              href="/busqueda-avanzada"
               className="shimmer-effect group relative flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-8 py-4 font-[family-name:var(--font-space-grotesk)] font-semibold text-white backdrop-blur-sm transition-all duration-500 hover:scale-105 hover:border-violet-500/50 hover:bg-white/10 hover:shadow-[0_0_40px_rgba(139,92,246,0.3)] active:scale-100"
             >
               <Search className="h-5 w-5 transition-transform duration-300 group-hover:rotate-[-12deg] group-hover:scale-110" />
@@ -113,7 +113,7 @@ export default function Home() {
 
               {/* Hover glow effect */}
               <div className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-40" />
-            </button>
+            </Link>
           </div>
         </div>
 
