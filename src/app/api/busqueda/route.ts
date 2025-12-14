@@ -1,37 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
-interface PerplexityMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
-}
+import { env } from "@/lib/env";
+import { rateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
+import { API_CONFIG, VALIDATION, RATE_LIMIT, CACHE } from "@/lib/constants";
+import type {
+  NewsItem,
+  PerplexityMessage,
+  PerplexityResponse,
+} from "@/types";
 
-interface PerplexityResponse {
-  id: string;
-  model: string;
-  choices: {
-    index: number;
-    message: {
-      role: string;
-      content: string;
-    };
-    finish_reason: string;
-  }[];
-  usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
+// ==========================================
+// Schemas de Validacion
+// ==========================================
 
-interface NewsItem {
-  title: string;
-  summary: string;
-  date: string;
-  source: string;
-  url: string;
-  impact_level: "HIGH" | "MEDIUM" | "LOW";
-  tags: string[];
-}
+const tickerSchema = z.object({
+  ticker: z
+    .string()
+    .min(VALIDATION.TICKER.MIN_LENGTH)
+    .max(VALIDATION.TICKER.MAX_LENGTH)
+    .regex(VALIDATION.TICKER.PATTERN, VALIDATION.TICKER.ERROR_MESSAGE)
+    .transform((val) => val.trim().toUpperCase()),
+});
+
+// ==========================================
+// Prompts
+// ==========================================
 
 const SYSTEM_PROMPT = `Eres un especialista en análisis de noticias financieras con acceso a información de mercado en tiempo real. Tu rol es extraer y validar noticias relevantes sobre acciones específicas, priorizando:
 1. Fuentes verificadas y reconocidas (Reuters, Bloomberg, Financial Times, AP, etc.)
@@ -77,143 +72,232 @@ REGLAS:
 - Solo devuelve el array JSON, nada más`;
 }
 
+// ==========================================
+// Helpers
+// ==========================================
+
+/**
+ * Obtiene el identificador del cliente para rate limiting
+ */
+function getClientIdentifier(request: NextRequest): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "anonymous"
+  );
+}
+
+/**
+ * Parsea y valida la respuesta de la API
+ */
+function parseNewsResponse(content: string): NewsItem[] {
+  // Limpiar bloques de codigo markdown
+  let cleanContent = content.trim();
+  cleanContent = cleanContent.replace(/^```json?\s*/i, "");
+  cleanContent = cleanContent.replace(/```\s*$/i, "");
+  cleanContent = cleanContent.trim();
+
+  // Intentar extraer array JSON
+  const jsonArrayMatch = cleanContent.match(/\[[\s\S]*\]/);
+  let rawNews: unknown[];
+
+  if (jsonArrayMatch) {
+    rawNews = JSON.parse(jsonArrayMatch[0]);
+  } else {
+    // Intentar como objeto unico
+    const singleMatch = cleanContent.match(/\{[\s\S]*\}/);
+    if (singleMatch) {
+      const parsed = JSON.parse(singleMatch[0]);
+      rawNews = Array.isArray(parsed) ? parsed : [parsed];
+    } else {
+      logger.warn("No se encontro JSON en la respuesta de Perplexity");
+      return [];
+    }
+  }
+
+  // Validar y sanitizar items
+  return rawNews
+    .filter((item): item is Record<string, unknown> => {
+      return (
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as Record<string, unknown>).title === "string" &&
+        typeof (item as Record<string, unknown>).summary === "string"
+      );
+    })
+    .map((item) => ({
+      title: String(item.title || "Sin titulo"),
+      summary: String(item.summary || "Sin resumen"),
+      date: String(item.date || new Date().toISOString().split("T")[0]),
+      source: String(item.source || "Fuente desconocida"),
+      url: String(item.url || "#"),
+      impact_level: (
+        ["HIGH", "MEDIUM", "LOW"].includes(String(item.impact_level))
+          ? item.impact_level
+          : "MEDIUM"
+      ) as "HIGH" | "MEDIUM" | "LOW",
+      tags: Array.isArray(item.tags)
+        ? item.tags.filter((t): t is string => typeof t === "string")
+        : [],
+    }));
+}
+
+// ==========================================
+// Handler Principal
+// ==========================================
+
 export async function POST(request: NextRequest) {
+  const clientId = getClientIdentifier(request);
+
+  // 1. Rate Limiting
+  const rateLimitResult = rateLimit(clientId, {
+    limit: RATE_LIMIT.DEFAULT_LIMIT,
+    windowMs: RATE_LIMIT.DEFAULT_WINDOW_MS,
+  });
+
+  if (!rateLimitResult.success) {
+    logger.warn("Rate limit excedido", { clientId });
+    return NextResponse.json(
+      { error: RATE_LIMIT.ERROR_MESSAGE },
+      {
+        status: 429,
+        headers: getRateLimitHeaders(rateLimitResult),
+      }
+    );
+  }
+
   try {
-    const { ticker } = await request.json();
+    // 2. Parsear y validar input
+    const body = await request.json();
+    const parseResult = tickerSchema.safeParse(body);
 
-    if (!ticker || typeof ticker !== "string") {
+    if (!parseResult.success) {
+      const errorMessage =
+        parseResult.error.errors[0]?.message || "Input invalido";
       return NextResponse.json(
-        { error: "El ticker es requerido" },
-        { status: 400 }
+        { error: errorMessage },
+        { status: 400, headers: getRateLimitHeaders(rateLimitResult) }
       );
     }
 
-    const apiKey = process.env.PERPLEXITY_API_KEY;
+    const { ticker } = parseResult.data;
 
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "API key de Perplexity no configurada" },
-        { status: 500 }
-      );
-    }
+    logger.info("Busqueda iniciada", { ticker, clientId });
 
-    const sanitizedTicker = ticker.trim().toUpperCase();
-
+    // 3. Construir mensajes para Perplexity
     const messages: PerplexityMessage[] = [
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: buildUserPrompt(sanitizedTicker) },
+      { role: "user", content: buildUserPrompt(ticker) },
     ];
 
-    const response = await fetch("https://api.perplexity.ai/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "sonar-pro",
-        messages,
-        temperature: 0.3,
-        max_tokens: 2500,
-        top_p: 0.9,
-        search_recency_filter: "month",
-        web_search_options: {
-          search_context_size: "high",
-        },
-      }),
-    });
+    // 4. Llamar a la API de Perplexity
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      API_CONFIG.PERPLEXITY.TIMEOUT_MS
+    );
 
+    let response: Response;
+    try {
+      response = await fetch(API_CONFIG.PERPLEXITY.URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.PERPLEXITY_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: API_CONFIG.PERPLEXITY.MODEL,
+          messages,
+          temperature: API_CONFIG.PERPLEXITY.TEMPERATURE,
+          max_tokens: API_CONFIG.PERPLEXITY.MAX_TOKENS,
+          top_p: API_CONFIG.PERPLEXITY.TOP_P,
+          search_recency_filter: API_CONFIG.PERPLEXITY.SEARCH_RECENCY,
+          web_search_options: {
+            search_context_size: API_CONFIG.PERPLEXITY.SEARCH_CONTEXT_SIZE,
+          },
+        }),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    // 5. Manejar errores de la API
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Perplexity API error:", errorText);
+      logger.error("Error de Perplexity API", {
+        status: response.status,
+        statusText: response.statusText,
+        ticker,
+      });
+
       return NextResponse.json(
         { error: `Error de la API de Perplexity: ${response.status}` },
-        { status: response.status }
+        { status: response.status, headers: getRateLimitHeaders(rateLimitResult) }
       );
     }
 
+    // 6. Parsear respuesta
     const data: PerplexityResponse = await response.json();
     const content = data.choices[0]?.message?.content;
 
     if (!content) {
+      logger.error("Respuesta vacia de Perplexity", { ticker });
       return NextResponse.json(
-        { error: "No se recibió respuesta de la API" },
-        { status: 500 }
+        { error: "No se recibio respuesta de la API" },
+        { status: 500, headers: getRateLimitHeaders(rateLimitResult) }
       );
     }
 
-    // Parse the JSON response
+    // 7. Parsear noticias
     let news: NewsItem[];
     try {
-      // Clean up the content - remove markdown code blocks if present
-      let cleanContent = content.trim();
-
-      // Remove markdown code block markers
-      cleanContent = cleanContent.replace(/^```json?\s*/i, "");
-      cleanContent = cleanContent.replace(/```\s*$/i, "");
-      cleanContent = cleanContent.trim();
-
-      // Try to extract JSON array from the response
-      const jsonArrayMatch = cleanContent.match(/\[[\s\S]*\]/);
-      if (jsonArrayMatch) {
-        news = JSON.parse(jsonArrayMatch[0]);
-      } else {
-        // Try parsing as single object wrapped in array
-        const singleMatch = cleanContent.match(/\{[\s\S]*\}/);
-        if (singleMatch) {
-          const parsed = JSON.parse(singleMatch[0]);
-          // Check if it's already an array-like structure
-          news = Array.isArray(parsed) ? parsed : [parsed];
-        } else {
-          // If no JSON found, return empty array
-          console.warn("No JSON found in response, returning empty array");
-          console.warn("Raw content:", content);
-          news = [];
-        }
-      }
-
-      // Validate and sanitize the news items
-      news = news.filter((item): item is NewsItem => {
-        return (
-          typeof item === "object" &&
-          item !== null &&
-          typeof item.title === "string" &&
-          typeof item.summary === "string"
-        );
-      }).map((item) => ({
-        title: item.title || "Sin título",
-        summary: item.summary || "Sin resumen",
-        date: item.date || new Date().toISOString().split("T")[0],
-        source: item.source || "Fuente desconocida",
-        url: item.url || "#",
-        impact_level: (["HIGH", "MEDIUM", "LOW"].includes(item.impact_level)
-          ? item.impact_level
-          : "MEDIUM") as "HIGH" | "MEDIUM" | "LOW",
-        tags: Array.isArray(item.tags) ? item.tags : [],
-      }));
-
+      news = parseNewsResponse(content);
     } catch (parseError) {
-      console.error("JSON parse error:", parseError);
-      console.error("Raw content:", content);
+      logger.exception("Error parseando respuesta de Perplexity", parseError, {
+        ticker,
+      });
+
       return NextResponse.json(
-        {
-          error: "Error al parsear la respuesta de la API",
-          rawContent: content,
-        },
-        { status: 500 }
+        { error: "Error al procesar la respuesta de la API" },
+        { status: 500, headers: getRateLimitHeaders(rateLimitResult) }
       );
     }
 
-    return NextResponse.json({
-      ticker: sanitizedTicker,
-      news,
-      usage: data.usage,
+    logger.info("Busqueda completada", {
+      ticker,
+      newsCount: news.length,
+      tokens: data.usage?.total_tokens,
     });
+
+    // 8. Responder con cache headers
+    return NextResponse.json(
+      {
+        ticker,
+        news,
+        usage: data.usage,
+      },
+      {
+        headers: {
+          ...getRateLimitHeaders(rateLimitResult),
+          "Cache-Control": CACHE.SEARCH_CACHE_CONTROL,
+        },
+      }
+    );
   } catch (error) {
-    console.error("Search API error:", error);
+    // Manejar errores de timeout
+    if (error instanceof Error && error.name === "AbortError") {
+      logger.error("Timeout en llamada a Perplexity", { clientId });
+      return NextResponse.json(
+        { error: "La solicitud tardo demasiado. Intente nuevamente." },
+        { status: 504, headers: getRateLimitHeaders(rateLimitResult) }
+      );
+    }
+
+    logger.exception("Error interno en API de busqueda", error, { clientId });
+
     return NextResponse.json(
       { error: "Error interno del servidor" },
-      { status: 500 }
+      { status: 500, headers: getRateLimitHeaders(rateLimitResult) }
     );
   }
 }

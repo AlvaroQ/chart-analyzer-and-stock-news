@@ -1,17 +1,9 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Loader2,
   Search,
-  ArrowLeft,
-  Sparkles,
   Newspaper,
   TrendingUp,
   TrendingDown,
@@ -24,30 +16,22 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { PageHeader, LoadingSpinner, EmptyState } from "@/components/shared";
+import { useNewsSearch } from "@/hooks";
+import { UI_MESSAGES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import type { NewsItem, ImpactLevel } from "@/types";
 
-interface NewsItem {
-  title: string;
-  summary: string;
-  date: string;
-  source: string;
-  url: string;
-  impact_level: "HIGH" | "MEDIUM" | "LOW";
-  tags: string[];
-}
+// ==========================================
+// Componentes locales de la pagina
+// ==========================================
 
-interface SearchResponse {
-  ticker: string;
-  news: NewsItem[];
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-  error?: string;
-}
-
-const ImpactBadge = ({ level }: { level: "HIGH" | "MEDIUM" | "LOW" }) => {
+const ImpactBadge = ({ level }: { level: ImpactLevel }) => {
   const config = {
     HIGH: {
       icon: TrendingUp,
@@ -113,17 +97,19 @@ const NewsCard = ({ news, index }: { news: NewsItem; index: number }) => {
         <p className="text-sm text-zinc-400 leading-relaxed">{news.summary}</p>
 
         {/* Tags */}
-        <div className="flex flex-wrap gap-2">
-          {news.tags.map((tag, i) => (
-            <span
-              key={i}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800/50 text-zinc-400 text-xs border border-zinc-700/50"
-            >
-              <Tag className="h-3 w-3" />
-              {tag}
-            </span>
-          ))}
-        </div>
+        {news.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {news.tags.map((tag, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800/50 text-zinc-400 text-xs border border-zinc-700/50"
+              >
+                <Tag className="h-3 w-3" />
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between pt-2 border-t border-zinc-800/50">
@@ -146,48 +132,35 @@ const NewsCard = ({ news, index }: { news: NewsItem; index: number }) => {
   );
 };
 
+// ==========================================
+// Componente principal
+// ==========================================
+
 export default function BusquedaAvanzadaPage() {
-  const [ticker, setTicker] = React.useState("");
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [searchResult, setSearchResult] = React.useState<SearchResponse | null>(null);
-  const [hasSearched, setHasSearched] = React.useState(false);
+  const [tickerInput, setTickerInput] = React.useState("");
+  const { news, ticker, isLoading, error, hasSearched, search } = useNewsSearch();
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!ticker.trim()) {
-      toast.error("Por favor, introduce un ticker para buscar");
+    if (!tickerInput.trim()) {
+      toast.error(UI_MESSAGES.ERROR.TICKER_REQUIRED);
       return;
     }
 
-    setIsLoading(true);
-    setSearchResult(null);
-    setHasSearched(true);
+    await search(tickerInput);
 
-    try {
-      const response = await fetch("/api/busqueda", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ticker: ticker.trim() }),
-      });
-
-      const data: SearchResponse = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Error en la busqueda");
-      }
-
-      setSearchResult(data);
-      toast.success(`Se encontraron ${data.news.length} noticias para ${data.ticker}`);
-    } catch (error) {
-      console.error("Search error:", error);
-      toast.error(error instanceof Error ? error.message : "Error al realizar la busqueda");
-    } finally {
-      setIsLoading(false);
+    if (!error && news.length > 0) {
+      toast.success(UI_MESSAGES.SUCCESS.SEARCH(news.length, ticker || tickerInput));
     }
   };
+
+  // Mostrar error como toast
+  React.useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !isLoading) {
@@ -198,67 +171,32 @@ export default function BusquedaAvanzadaPage() {
   const renderResults = () => {
     if (isLoading) {
       return (
-        <div className="flex flex-col items-center justify-center py-20 gap-6">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-violet-500/20 blur-xl animate-pulse" />
-            <div className="relative p-6 rounded-full bg-gradient-to-br from-violet-600/20 to-fuchsia-600/20 border border-violet-500/30">
-              <Search className="h-12 w-12 text-violet-400 animate-pulse" />
-            </div>
-          </div>
-          <div className="text-center space-y-2">
-            <p className="text-lg font-semibold text-white">Buscando noticias...</p>
-            <p className="text-sm text-zinc-400">
-              Analizando fuentes financieras con IA
-            </p>
-          </div>
-          <div className="flex gap-1">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="w-2 h-2 rounded-full bg-violet-500 animate-bounce"
-                style={{ animationDelay: `${i * 0.15}s` }}
-              />
-            ))}
-          </div>
-        </div>
+        <LoadingSpinner
+          icon={Search}
+          title={UI_MESSAGES.LOADING.SEARCH}
+          subtitle={UI_MESSAGES.LOADING.SEARCH_SUBTITLE}
+        />
       );
     }
 
     if (!hasSearched) {
       return (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="relative mb-6">
-            <div className="absolute inset-0 rounded-full bg-zinc-500/10 blur-xl" />
-            <div className="relative p-6 rounded-full bg-gradient-to-br from-zinc-800/50 to-zinc-900/50 border border-zinc-700/50">
-              <Newspaper className="h-12 w-12 text-zinc-500" />
-            </div>
-          </div>
-          <p className="text-lg font-semibold text-zinc-300 mb-2">
-            Busca noticias financieras
-          </p>
-          <p className="text-sm text-zinc-500 max-w-md">
-            Introduce un ticker (ej: AAPL, TSLA, NVDA) para obtener las noticias mas relevantes de los ultimos dias
-          </p>
-        </div>
+        <EmptyState
+          icon={Newspaper}
+          title={UI_MESSAGES.EMPTY.SEARCH_TITLE}
+          subtitle={UI_MESSAGES.EMPTY.SEARCH_SUBTITLE}
+        />
       );
     }
 
-    if (!searchResult || searchResult.news.length === 0) {
+    if (news.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="relative mb-6">
-            <div className="absolute inset-0 rounded-full bg-amber-500/10 blur-xl" />
-            <div className="relative p-6 rounded-full bg-gradient-to-br from-amber-800/30 to-amber-900/30 border border-amber-700/50">
-              <AlertCircle className="h-12 w-12 text-amber-400" />
-            </div>
-          </div>
-          <p className="text-lg font-semibold text-zinc-300 mb-2">
-            No se encontraron noticias
-          </p>
-          <p className="text-sm text-zinc-500 max-w-md">
-            No hay noticias relevantes para este ticker en los ultimos dias. Intenta con otro simbolo.
-          </p>
-        </div>
+        <EmptyState
+          icon={AlertCircle}
+          title={UI_MESSAGES.EMPTY.NO_RESULTS_TITLE}
+          subtitle={UI_MESSAGES.EMPTY.NO_RESULTS_SUBTITLE}
+          colorTheme="amber"
+        />
       );
     }
 
@@ -268,18 +206,18 @@ export default function BusquedaAvanzadaPage() {
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
             <span className="px-3 py-1 rounded-lg bg-violet-600/20 text-violet-400 text-sm font-bold border border-violet-500/30">
-              {searchResult.ticker}
+              {ticker}
             </span>
             <span className="text-sm text-zinc-500">
-              {searchResult.news.length} noticia{searchResult.news.length !== 1 ? "s" : ""} encontrada{searchResult.news.length !== 1 ? "s" : ""}
+              {news.length} noticia{news.length !== 1 ? "s" : ""} encontrada{news.length !== 1 ? "s" : ""}
             </span>
           </div>
         </div>
 
         {/* News cards */}
         <div className="grid gap-4">
-          {searchResult.news.map((news, index) => (
-            <NewsCard key={index} news={news} index={index} />
+          {news.map((newsItem, index) => (
+            <NewsCard key={index} news={newsItem} index={index} />
           ))}
         </div>
       </div>
@@ -291,9 +229,7 @@ export default function BusquedaAvanzadaPage() {
       {/* Background Effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="gradient-mesh absolute inset-0 opacity-60" />
-        <div
-          className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-violet-600/15 rounded-full blur-[120px] animate-blob"
-        />
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-violet-600/15 rounded-full blur-[120px] animate-blob" />
         <div
           className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-cyan-500/15 rounded-full blur-[120px] animate-blob"
           style={{ animationDelay: "-2s" }}
@@ -304,42 +240,13 @@ export default function BusquedaAvanzadaPage() {
         />
       </div>
 
-      {/* Header Premium */}
-      <header className="relative z-10 border-b border-white/5 bg-zinc-950/80 backdrop-blur-xl">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/"
-              className="group flex items-center gap-2 text-zinc-400 hover:text-white transition-all duration-300"
-            >
-              <div className="p-2 rounded-lg bg-zinc-800/50 border border-zinc-700/50 group-hover:bg-zinc-700/50 group-hover:border-zinc-600/50 transition-all duration-300">
-                <ArrowLeft className="h-4 w-4" />
-              </div>
-              <span className="hidden sm:inline">Volver</span>
-            </Link>
-            <div className="h-6 w-px bg-zinc-800" />
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-violet-600/20 to-fuchsia-600/20 border border-violet-500/30">
-                <Search className="h-5 w-5 text-violet-400" />
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white font-[family-name:var(--font-outfit)]">
-                  Busqueda Avanzada
-                </h1>
-                <p className="text-xs text-zinc-500 hidden sm:block">
-                  Noticias financieras con Perplexity AI
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Badge AI */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 border border-violet-500/30">
-            <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-            <span className="text-xs font-medium text-violet-300">IA Activa</span>
-          </div>
-        </div>
-      </header>
+      {/* Header */}
+      <PageHeader
+        backHref="/"
+        icon={Search}
+        title="Busqueda Avanzada"
+        subtitle="Noticias financieras con Perplexity AI"
+      />
 
       {/* Main Content */}
       <main className="relative z-10 flex-1 container mx-auto p-4 md:p-6 lg:p-8">
@@ -372,8 +279,8 @@ export default function BusquedaAvanzadaPage() {
                       <Input
                         id="ticker"
                         type="text"
-                        value={ticker}
-                        onChange={(e) => setTicker(e.target.value.toUpperCase())}
+                        value={tickerInput}
+                        onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
                         onKeyDown={handleKeyDown}
                         placeholder="Ej: AAPL, TSLA, NVDA..."
                         className="h-12 bg-zinc-900/50 border-zinc-700/50 text-white placeholder:text-zinc-500 text-lg font-medium tracking-wider uppercase focus:border-violet-500/50 focus:ring-violet-500/20 transition-all duration-300"
@@ -385,7 +292,7 @@ export default function BusquedaAvanzadaPage() {
                     </div>
                     <Button
                       type="submit"
-                      disabled={isLoading || !ticker.trim()}
+                      disabled={isLoading || !tickerInput.trim()}
                       size="lg"
                       className={cn(
                         "relative overflow-hidden h-12 px-8 text-base font-semibold rounded-xl",
