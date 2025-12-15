@@ -2,8 +2,13 @@
 
 Una aplicación full-stack de análisis financiero potenciada por inteligencia artificial, construida con Next.js 16 y React 19. Integra múltiples agentes de IA especializados para búsqueda de noticias en tiempo real y análisis técnico de gráficos bursátiles.
 
+## Demo
+
+**https://project-ia-three.vercel.app/**
+
 ## Tabla de Contenidos
 
+- [Demo](#demo)
 - [Descripción General](#descripción-general)
 - [Arquitectura y Stack Tecnológico](#arquitectura-y-stack-tecnológico)
 - [Beneficios de la Arquitectura](#beneficios-de-la-arquitectura)
@@ -180,247 +185,30 @@ src/
 
 ## Técnicas de Prompt Engineering
 
-El proyecto implementa técnicas avanzadas de prompt engineering para garantizar respuestas estructuradas, precisas y deterministas de los modelos de IA.
+Implementamos 8 técnicas avanzadas para respuestas estructuradas y deterministas:
 
-### 1. Salida Estructurada por Esquema (Schema-Based Prompting)
+- **Schema-based prompting** - Formato JSON explícito
+- **Typed slots** - Campos con tipos y restricciones
+- **Descomposición de tareas** - Sub-salidas independientes
+- **Contrato estable** - Interfaz inmutable IA-sistema
+- **Restricciones explícitas** - Directivas negativas anti-alucinación
+- **Formato especificado** - Valores exactos (fechas, enums)
+- **Vocabulario controlado** - Conjunto cerrado de categorías
+- **Fallback determinista** - Comportamientos por defecto
 
-Define explícitamente el formato JSON esperado en el prompt, obligando al modelo a adherirse a una estructura predefinida.
-
-```typescript
-// Ejemplo del prompt de búsqueda
-`Devuelve ÚNICAMENTE un JSON con este formato exacto:
-{
-  "news": [
-    {
-      "title": "...",
-      "summary": "...",
-      "date": "YYYY-MM-DD",
-      "source": "...",
-      "url": "...",
-      "impact_level": "HIGH|MEDIUM|LOW",
-      "tags": ["..."]
-    }
-  ]
-}`
-```
-
-**Beneficio**: Elimina ambigüedad en el formato de salida, facilitando el parsing automático y la integración con el sistema de tipos de TypeScript.
-
-### 2. Tipado de Campos (Typed Slots)
-
-Cada campo del schema tiene un tipo de dato específico y restricciones claras.
-
-```typescript
-interface NewsItem {
-  title: string           // Texto, máximo 100 caracteres
-  summary: string         // Texto, máximo 120 palabras
-  date: string            // Formato estricto: YYYY-MM-DD
-  source: string          // Nombre de fuente verificada
-  url: string             // URL válida
-  impact_level: ImpactLevel  // Enum: "HIGH" | "MEDIUM" | "LOW"
-  tags: string[]          // Array de categorías predefinidas
-}
-```
-
-**Beneficio**: Garantiza consistencia en los datos y permite validación automática con Zod post-respuesta.
-
-### 3. Descomposición de Tarea en Sub-Salidas
-
-Las tareas complejas se dividen en secciones independientes para mayor precisión.
-
-```typescript
-// Análisis técnico dividido en secciones
-{
-  "general_trend": { /* Análisis de tendencia */ },
-  "candle_patterns": { /* Patrones identificados */ },
-  "technical_signals": { /* Señales de trading */ },
-  "support_levels": [ /* Niveles de soporte */ ],
-  "resistance_levels": [ /* Niveles de resistencia */ ],
-  "rsi": { /* Indicador RSI */ },
-  "macd": { /* Indicador MACD */ }
-}
-```
-
-**Beneficio**: Cada sub-tarea puede ser evaluada independientemente, reduciendo errores de confusión entre conceptos y permitiendo procesamiento granular.
-
-### 4. Estandarización de Interfaz (Contrato Estable)
-
-Se define un contrato de API inmutable que actúa como interfaz entre la IA y el sistema.
-
-```typescript
-// Contrato de respuesta siempre idéntico
-interface SearchResponse {
-  ticker: string
-  news: NewsItem[]
-  usage?: TokenUsage
-  error?: string
-}
-```
-
-**Beneficio**: Permite evolucionar la lógica interna del prompt sin modificar el código de integración, siguiendo el principio Open/Closed.
-
-### 5. Instrucciones con Restricciones Explícitas
-
-El prompt incluye directivas negativas que delimitan claramente lo que el modelo NO debe hacer.
-
-```
-Instrucciones Críticas de Precisión:
-- NO inventes patrones que no sean claramente visibles
-- NO proporciones valores numéricos de indicadores si no son visibles
-- Si un indicador NO es visible, indica "isVisible: false"
-- NO incluyas texto adicional fuera del JSON
-- Sé CONSERVADOR: si algo no es claro, indícalo como "no_claro"
-```
-
-**Beneficio**: Reduce alucinaciones y respuestas inventadas, fundamental para aplicaciones financieras donde la precisión es crítica.
-
-### 6. Formato de Salida Fuertemente Especificado
-
-Se especifica no solo la estructura, sino también el formato exacto de cada valor.
-
-```
-- date: Formato YYYY-MM-DD (ejemplo: 2024-12-15)
-- summary: Máximo 120 palabras, en español
-- impact_level: EXACTAMENTE uno de: "HIGH", "MEDIUM", "LOW"
-- tags: Array con valores de: ["earnings", "acquisition", "regulatory", "market", "analyst", "product", "management", "legal", "dividend", "other"]
-```
-
-**Beneficio**: Elimina variaciones de formato que complicarían el procesamiento posterior.
-
-### 7. Vocabulario Controlado
-
-Se utiliza un conjunto cerrado de valores permitidos para campos categóricos.
-
-```typescript
-// Vocabulario de impact_level
-type ImpactLevel = "HIGH" | "MEDIUM" | "LOW"
-
-// Vocabulario de tags
-const ALLOWED_TAGS = [
-  "earnings",      // Resultados financieros
-  "acquisition",   // Fusiones y adquisiciones
-  "regulatory",    // Regulación
-  "market",        // Movimientos de mercado
-  "analyst",       // Ratings de analistas
-  "product",       // Lanzamientos de productos
-  "management",    // Cambios directivos
-  "legal",         // Asuntos legales
-  "dividend",      // Dividendos
-  "other"          // Otros
-]
-```
-
-**Beneficio**: Permite filtrado, agrupación y análisis consistente de las noticias.
-
-### 8. Reglas Negativas y Fallback Determinista
-
-Se definen comportamientos por defecto cuando no hay información disponible.
-
-```
-- Si no encuentras noticias relevantes, devuelve: {"news": []}
-- Si un indicador no es visible: {"isVisible": false, "value": null}
-- NO incluyas texto explicativo fuera del JSON
-- Si la imagen no es un gráfico financiero, devuelve:
-  {"error": "La imagen proporcionada no parece ser un gráfico financiero válido"}
-```
-
-**Beneficio**: Garantiza que el sistema siempre reciba una respuesta parseable, incluso en casos edge o de error.
-
-### Matriz de Técnicas por Agente
-
-| Técnica                  | Perplexity (Búsqueda) | Gemini (Análisis) |
-| ------------------------ | :-------------------: | :---------------: |
-| Schema-based prompting   |           ✓           |         ✓         |
-| Typed slots              |           ✓           |         ✓         |
-| Descomposición de tarea  |           ✓           |         ✓         |
-| Contrato estable         |           ✓           |         ✓         |
-| Restricciones explícitas |           ✓           |         ✓         |
-| Formato especificado     |           ✓           |         ✓         |
-| Vocabulario controlado   |           ✓           |         ✓         |
-| Fallback determinista    |           ✓           |         ✓         |
+Ver documentación completa: [docs/PROMPT_ENGINEERING.md](docs/PROMPT_ENGINEERING.md)
 
 ---
 
 ## Seguridad
 
-### Headers HTTP de Seguridad
+- **Headers HTTP**: HSTS, X-Frame-Options, CSP, X-XSS-Protection
+- **Validación**: Zod para inputs (ticker, imágenes, env vars)
+- **Rate Limiting**: 10 req/min con headers informativos
+- **Logging seguro**: Sanitización de datos sensibles
+- **API Keys**: Server-side only, nunca expuestas al cliente
 
-Configurados en `next.config.ts` para todas las respuestas:
-
-| Header                      | Configuración                                  | Protección                    |
-| --------------------------- | ---------------------------------------------- | ----------------------------- |
-| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Fuerza HTTPS durante 2 años   |
-| `X-Frame-Options`           | `SAMEORIGIN`                                   | Previene clickjacking         |
-| `X-Content-Type-Options`    | `nosniff`                                      | Evita MIME sniffing           |
-| `X-XSS-Protection`          | `1; mode=block`                                | Protección XSS del navegador  |
-| `Permissions-Policy`        | `camera=(), microphone=(), geolocation=()`     | Desactiva APIs innecesarias   |
-| `Content-Security-Policy`   | Política restrictiva con allowlist             | Previene inyección de scripts |
-
-### Validación de Entrada
-
-```typescript
-// Validación de ticker con Zod
-const tickerSchema = z.string()
-  .min(1)
-  .max(10)
-  .regex(/^[A-Z0-9.\-^]+$/i, "Ticker inválido")
-
-// Validación de imagen
-const imageSchema = z.object({
-  type: z.enum(["image/jpeg", "image/png"]),
-  size: z.number().max(4 * 1024 * 1024) // 4MB máximo
-})
-```
-
-### Validación de Variables de Entorno
-
-```typescript
-// src/lib/env.ts - Validación al inicio de la aplicación
-const envSchema = z.object({
-  GOOGLE_GEMINI_API_KEY: z.string().min(1),
-  PERPLEXITY_API_KEY: z.string().min(1),
-  NODE_ENV: z.enum(["development", "production", "test"])
-})
-
-// Falla rápidamente si faltan variables críticas
-export const env = envSchema.parse(process.env)
-```
-
-### Rate Limiting
-
-```typescript
-// Configuración por defecto
-{
-  limit: 10,              // Máximo de requests
-  windowMs: 60 * 1000,    // Ventana de 1 minuto
-  cleanupInterval: 5 * 60 * 1000  // Limpieza cada 5 minutos
-}
-
-// Headers de respuesta
-"X-RateLimit-Limit": "10"
-"X-RateLimit-Remaining": "7"
-"X-RateLimit-Reset": "1702656000"
-```
-
-### Logging Seguro
-
-```typescript
-// Sanitización automática de datos sensibles
-const SENSITIVE_KEYS = [
-  "password", "token", "api_key", "apiKey",
-  "secret", "authorization", "cookie"
-]
-
-// Truncamiento de valores largos (>500 chars)
-// Logs estructurados en JSON para integración con SIEM
-```
-
-### Protección de API Keys
-
-- Variables de entorno exclusivamente server-side
-- Nunca expuestas al cliente
-- Validación de presencia al inicio de la aplicación
-- Prefijo `NEXT_PUBLIC_` solo para variables públicas (ninguna API key)
+Ver documentación completa: [docs/SECURITY.md](docs/SECURITY.md)
 
 ---
 
