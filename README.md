@@ -31,23 +31,23 @@ ProjectIA es una plataforma profesional que combina dos capacidades fundamentale
 
 ### Stack Principal
 
-| Capa | Tecnología | Versión |
-|------|------------|---------|
-| **Framework** | Next.js (App Router) | 16.0.10 |
-| **Runtime** | React | 19.2.1 |
-| **Lenguaje** | TypeScript | 5.x |
-| **Estilos** | Tailwind CSS | 4.x |
-| **Componentes UI** | shadcn/ui | Latest |
-| **Iconos** | Lucide React | Latest |
-| **Validación** | Zod | Latest |
-| **IA Framework** | Google Genkit | 1.26.0 |
+| Capa               | Tecnología           | Versión |
+| ------------------ | -------------------- | ------- |
+| **Framework**      | Next.js (App Router) | 16.0.10 |
+| **Runtime**        | React                | 19.2.1  |
+| **Lenguaje**       | TypeScript           | 5.x     |
+| **Estilos**        | Tailwind CSS         | 4.x     |
+| **Componentes UI** | shadcn/ui            | Latest  |
+| **Iconos**         | Lucide React         | Latest  |
+| **Validación**     | Zod                  | Latest  |
+| **IA Framework**   | Google Genkit        | 1.26.0  |
 
 ### Proveedores de IA
 
-| Proveedor | Modelo | Propósito |
-|-----------|--------|-----------|
-| **Perplexity AI** | sonar-pro | Búsqueda de noticias con acceso web |
-| **Google Gemini** | gemini-2.0-flash | Análisis técnico de gráficos |
+| Proveedor         | Modelo           | Propósito                           |
+| ----------------- | ---------------- | ----------------------------------- |
+| **Perplexity AI** | sonar-pro        | Búsqueda de noticias con acceso web |
+| **Google Gemini** | gemini-2.0-flash | Análisis técnico de gráficos        |
 
 ### Estructura de Directorios
 
@@ -161,13 +161,13 @@ src/
 
 #### Capacidades de Análisis
 
-| Categoría | Elementos Analizados |
-|-----------|---------------------|
-| **Tendencia** | Estructura de altos/bajos, tendencias por timeframe |
-| **Patrones de Velas** | Engulfing, Pinbar, Doji, Morning/Evening Star |
-| **Formaciones** | Triángulos, Banderas, Hombro-Cabeza-Hombro |
-| **Niveles Clave** | Soportes, Resistencias, Zonas de liquidez |
-| **Indicadores** | RSI (valor exacto), MACD (cruces y histograma) |
+| Categoría             | Elementos Analizados                                |
+| --------------------- | --------------------------------------------------- |
+| **Tendencia**         | Estructura de altos/bajos, tendencias por timeframe |
+| **Patrones de Velas** | Engulfing, Pinbar, Doji, Morning/Evening Star       |
+| **Formaciones**       | Triángulos, Banderas, Hombro-Cabeza-Hombro          |
+| **Niveles Clave**     | Soportes, Resistencias, Zonas de liquidez           |
+| **Indicadores**       | RSI (valor exacto), MACD (cruces y histograma)      |
 
 #### Principios del Agente
 
@@ -328,16 +328,16 @@ Se definen comportamientos por defecto cuando no hay información disponible.
 
 ### Matriz de Técnicas por Agente
 
-| Técnica | Perplexity (Búsqueda) | Gemini (Análisis) |
-|---------|:---------------------:|:-----------------:|
-| Schema-based prompting | ✓ | ✓ |
-| Typed slots | ✓ | ✓ |
-| Descomposición de tarea | ✓ | ✓ |
-| Contrato estable | ✓ | ✓ |
-| Restricciones explícitas | ✓ | ✓ |
-| Formato especificado | ✓ | ✓ |
-| Vocabulario controlado | ✓ | ✓ |
-| Fallback determinista | ✓ | ✓ |
+| Técnica                  | Perplexity (Búsqueda) | Gemini (Análisis) |
+| ------------------------ | :-------------------: | :---------------: |
+| Schema-based prompting   |           ✓           |         ✓         |
+| Typed slots              |           ✓           |         ✓         |
+| Descomposición de tarea  |           ✓           |         ✓         |
+| Contrato estable         |           ✓           |         ✓         |
+| Restricciones explícitas |           ✓           |         ✓         |
+| Formato especificado     |           ✓           |         ✓         |
+| Vocabulario controlado   |           ✓           |         ✓         |
+| Fallback determinista    |           ✓           |         ✓         |
 
 ---
 
@@ -347,14 +347,14 @@ Se definen comportamientos por defecto cuando no hay información disponible.
 
 Configurados en `next.config.ts` para todas las respuestas:
 
-| Header | Configuración | Protección |
-|--------|---------------|------------|
-| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Fuerza HTTPS durante 2 años |
-| `X-Frame-Options` | `SAMEORIGIN` | Previene clickjacking |
-| `X-Content-Type-Options` | `nosniff` | Evita MIME sniffing |
-| `X-XSS-Protection` | `1; mode=block` | Protección XSS del navegador |
-| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Desactiva APIs innecesarias |
-| `Content-Security-Policy` | Política restrictiva con allowlist | Previene inyección de scripts |
+| Header                      | Configuración                                  | Protección                    |
+| --------------------------- | ---------------------------------------------- | ----------------------------- |
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains; preload` | Fuerza HTTPS durante 2 años   |
+| `X-Frame-Options`           | `SAMEORIGIN`                                   | Previene clickjacking         |
+| `X-Content-Type-Options`    | `nosniff`                                      | Evita MIME sniffing           |
+| `X-XSS-Protection`          | `1; mode=block`                                | Protección XSS del navegador  |
+| `Permissions-Policy`        | `camera=(), microphone=(), geolocation=()`     | Desactiva APIs innecesarias   |
+| `Content-Security-Policy`   | Política restrictiva con allowlist             | Previene inyección de scripts |
 
 ### Validación de Entrada
 
@@ -475,12 +475,12 @@ http://localhost:3000
 
 ### Scripts Disponibles
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm run dev` | Inicia servidor de desarrollo |
-| `npm run build` | Compila para producción |
+| Comando         | Descripción                   |
+| --------------- | ----------------------------- |
+| `npm run dev`   | Inicia servidor de desarrollo |
+| `npm run build` | Compila para producción       |
 | `npm run start` | Inicia servidor de producción |
-| `npm run lint` | Ejecuta ESLint |
+| `npm run lint`  | Ejecuta ESLint                |
 
 ---
 
@@ -548,12 +548,12 @@ Busca noticias financieras para un ticker específico.
 
 **Errores:**
 
-| Código | Descripción |
-|--------|-------------|
-| 400 | Ticker inválido |
-| 429 | Rate limit excedido |
-| 500 | Error interno del servidor |
-| 504 | Timeout de la API externa |
+| Código | Descripción                |
+| ------ | -------------------------- |
+| 400    | Ticker inválido            |
+| 429    | Rate limit excedido        |
+| 500    | Error interno del servidor |
+| 504    | Timeout de la API externa  |
 
 **Headers de Caché:**
 
@@ -620,3 +620,9 @@ Desarrollado con tecnologías de:
 - [Google Genkit](https://firebase.google.com/docs/genkit) - Framework IA
 - [Perplexity AI](https://www.perplexity.ai/) - Búsqueda con IA
 - [Google Gemini](https://deepmind.google/technologies/gemini/) - Modelo multimodal
+
+<p align="center">
+  <a href="https://www.buymeacoffee.com/alvaroqp" target="_blank">
+    <img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: auto !important;width: auto !important;">
+  </a>
+</p>
