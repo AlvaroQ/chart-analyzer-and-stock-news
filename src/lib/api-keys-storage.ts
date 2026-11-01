@@ -4,11 +4,7 @@
  */
 
 import type { ApiKeyType } from '@/types';
-
-const STORAGE_KEYS = {
-  gemini: 'projectia_gemini_api_key',
-  perplexity: 'projectia_perplexity_api_key',
-} as const;
+import { PROVIDER_IDS, PROVIDERS } from '@/lib/providers';
 
 /**
  * Guarda una API key en localStorage
@@ -17,7 +13,7 @@ export function saveApiKey(type: ApiKeyType, key: string): void {
   if (typeof window === 'undefined') return;
 
   try {
-    localStorage.setItem(STORAGE_KEYS[type], key.trim());
+    localStorage.setItem(PROVIDERS[type].storageKey, key.trim());
   } catch (error) {
     console.error(`Error saving ${type} API key:`, error);
   }
@@ -30,7 +26,7 @@ export function getApiKey(type: ApiKeyType): string | null {
   if (typeof window === 'undefined') return null;
 
   try {
-    const key = localStorage.getItem(STORAGE_KEYS[type]);
+    const key = localStorage.getItem(PROVIDERS[type].storageKey);
     return key || null;
   } catch (error) {
     console.error(`Error getting ${type} API key:`, error);
@@ -45,7 +41,7 @@ export function removeApiKey(type: ApiKeyType): void {
   if (typeof window === 'undefined') return;
 
   try {
-    localStorage.removeItem(STORAGE_KEYS[type]);
+    localStorage.removeItem(PROVIDERS[type].storageKey);
   } catch (error) {
     console.error(`Error removing ${type} API key:`, error);
   }
@@ -58,8 +54,9 @@ export function clearAllApiKeys(): void {
   if (typeof window === 'undefined') return;
 
   try {
-    localStorage.removeItem(STORAGE_KEYS.gemini);
-    localStorage.removeItem(STORAGE_KEYS.perplexity);
+    for (const id of PROVIDER_IDS) {
+      localStorage.removeItem(PROVIDERS[id].storageKey);
+    }
   } catch (error) {
     console.error('Error clearing API keys:', error);
   }

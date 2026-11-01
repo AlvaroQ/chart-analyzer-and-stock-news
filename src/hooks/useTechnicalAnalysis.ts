@@ -52,7 +52,9 @@ interface UseTechnicalAnalysisReturn extends UseTechnicalAnalysisState {
  * ```
  */
 export function useTechnicalAnalysis(): UseTechnicalAnalysisReturn {
-  const { geminiApiKey, hasGeminiKey } = useApiKeys();
+  const { apiKeys, hasKey } = useApiKeys();
+  const geminiApiKey = apiKeys.gemini;
+  const hasGeminiKey = hasKey('gemini');
 
   const [state, setState] = useState<UseTechnicalAnalysisState>({
     result: null,

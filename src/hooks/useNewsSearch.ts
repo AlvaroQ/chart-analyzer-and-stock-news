@@ -57,7 +57,9 @@ interface UseNewsSearchReturn extends UseNewsSearchState {
  * ```
  */
 export function useNewsSearch(): UseNewsSearchReturn {
-  const { perplexityApiKey, hasPerplexityKey } = useApiKeys();
+  const { apiKeys, hasKey } = useApiKeys();
+  const perplexityApiKey = apiKeys.perplexity;
+  const hasPerplexityKey = hasKey('perplexity');
 
   const [state, setState] = useState<UseNewsSearchState>({
     news: [],

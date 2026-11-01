@@ -14,9 +14,9 @@ interface ApiKeyRequiredProps {
 }
 
 export function ApiKeyRequired({ type, children }: ApiKeyRequiredProps) {
-  const { hasGeminiKey, hasPerplexityKey, isLoading } = useApiKeys();
+  const { hasKey: hasProviderKey, isLoading } = useApiKeys();
 
-  const hasKey = type === 'gemini' ? hasGeminiKey : hasPerplexityKey;
+  const hasKey = hasProviderKey(type);
   const config = API_KEY_CONFIG[type];
 
   // Mostrar loading mientras se cargan las keys

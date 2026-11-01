@@ -4,49 +4,33 @@
  */
 
 import type { ApiKeyType, ApiKeyConfig } from '@/types';
+import { PROVIDERS } from '@/lib/providers';
 
 /**
  * Configuracion de validacion para cada tipo de API key
  */
-export const API_KEY_CONFIG: Record<ApiKeyType, ApiKeyConfig> = {
-  gemini: {
-    pattern: /^AIza[a-zA-Z0-9_-]{35,}$/,
-    helpUrl: 'https://aistudio.google.com/apikey',
-    name: 'Google Gemini',
-    placeholder: 'AIza...',
-  },
-  perplexity: {
-    pattern: /^pplx-[a-zA-Z0-9]{40,}$/,
-    helpUrl: 'https://www.perplexity.ai/settings/api',
-    name: 'Perplexity',
-    placeholder: 'pplx-...',
-  },
-};
+export const API_KEY_CONFIG: Record<ApiKeyType, ApiKeyConfig> = PROVIDERS;
+
+/**
+ * Valida una API key segun su tipo
+ */
+export function validateApiKey(type: ApiKeyType, key: string): boolean {
+  if (!key || typeof key !== 'string') return false;
+  return API_KEY_CONFIG[type].pattern.test(key.trim());
+}
 
 /**
  * Valida el formato de una API key de Gemini
  */
 export function validateGeminiApiKey(key: string): boolean {
-  if (!key || typeof key !== 'string') return false;
-  return API_KEY_CONFIG.gemini.pattern.test(key.trim());
+  return validateApiKey('gemini', key);
 }
 
 /**
  * Valida el formato de una API key de Perplexity
  */
 export function validatePerplexityApiKey(key: string): boolean {
-  if (!key || typeof key !== 'string') return false;
-  return API_KEY_CONFIG.perplexity.pattern.test(key.trim());
-}
-
-/**
- * Valida una API key segun su tipo
- */
-export function validateApiKey(type: ApiKeyType, key: string): boolean {
-  if (type === 'gemini') {
-    return validateGeminiApiKey(key);
-  }
-  return validatePerplexityApiKey(key);
+  return validateApiKey('perplexity', key);
 }
 
 /**

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Context para manejar API keys del usuario
+ * Context para manejar API keys del usuario y el proveedor elegido por funcionalidad
  * Sistema BYOK (Bring Your Own Key)
  */
 
@@ -11,6 +11,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   type ReactNode,
 } from 'react';
 import {
@@ -19,62 +20,84 @@ import {
   removeApiKey,
   clearAllApiKeys,
 } from '@/lib/api-keys-storage';
-import type { ApiKeysContextValue } from '@/types';
+import { getFeatureProvider, saveFeatureProvider } from '@/lib/provider-preferences';
+import {
+  DEFAULT_FEATURE_PROVIDER,
+  FEATURE_IDS,
+  PROVIDER_IDS,
+  type FeatureId,
+  type ProviderId,
+} from '@/lib/providers';
+import type { ApiKeys, ApiKeysContextValue } from '@/types';
 
 const ApiKeysContext = createContext<ApiKeysContextValue | null>(null);
+
+function emptyKeys(): ApiKeys {
+  return Object.fromEntries(PROVIDER_IDS.map((id) => [id, null])) as ApiKeys;
+}
 
 interface ApiKeysProviderProps {
   children: ReactNode;
 }
 
 export function ApiKeysProvider({ children }: ApiKeysProviderProps) {
-  const [geminiApiKey, setGeminiApiKeyState] = useState<string | null>(null);
-  const [perplexityApiKey, setPerplexityApiKeyState] = useState<string | null>(null);
+  const [apiKeys, setApiKeys] = useState<ApiKeys>(emptyKeys);
+  const [featureProviders, setFeatureProviders] =
+    useState<Record<FeatureId, ProviderId>>(DEFAULT_FEATURE_PROVIDER);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Cargar keys de localStorage al montar
+  // Cargar keys y preferencias de localStorage al montar
   useEffect(() => {
-    setGeminiApiKeyState(getApiKey('gemini'));
-    setPerplexityApiKeyState(getApiKey('perplexity'));
+    setApiKeys(
+      Object.fromEntries(PROVIDER_IDS.map((id) => [id, getApiKey(id)])) as ApiKeys,
+    );
+    setFeatureProviders(
+      Object.fromEntries(
+        FEATURE_IDS.map((feature) => [feature, getFeatureProvider(feature)]),
+      ) as Record<FeatureId, ProviderId>,
+    );
     setIsLoading(false);
   }, []);
 
-  const setGeminiApiKey = useCallback((key: string | null) => {
+  const setApiKey = useCallback((provider: ProviderId, key: string | null) => {
     if (key) {
-      saveApiKey('gemini', key);
-      setGeminiApiKeyState(key);
+      saveApiKey(provider, key);
     } else {
-      removeApiKey('gemini');
-      setGeminiApiKeyState(null);
+      removeApiKey(provider);
     }
+    setApiKeys((prev) => ({ ...prev, [provider]: key || null }));
   }, []);
 
-  const setPerplexityApiKey = useCallback((key: string | null) => {
-    if (key) {
-      saveApiKey('perplexity', key);
-      setPerplexityApiKeyState(key);
-    } else {
-      removeApiKey('perplexity');
-      setPerplexityApiKeyState(null);
-    }
-  }, []);
+  const hasKey = useCallback(
+    (provider: ProviderId) => {
+      const key = apiKeys[provider];
+      return key !== null && key.length > 0;
+    },
+    [apiKeys],
+  );
 
   const handleClearAllKeys = useCallback(() => {
     clearAllApiKeys();
-    setGeminiApiKeyState(null);
-    setPerplexityApiKeyState(null);
+    setApiKeys(emptyKeys());
   }, []);
 
-  const value: ApiKeysContextValue = {
-    geminiApiKey,
-    perplexityApiKey,
-    setGeminiApiKey,
-    setPerplexityApiKey,
-    clearAllKeys: handleClearAllKeys,
-    hasGeminiKey: geminiApiKey !== null && geminiApiKey.length > 0,
-    hasPerplexityKey: perplexityApiKey !== null && perplexityApiKey.length > 0,
-    isLoading,
-  };
+  const setFeatureProvider = useCallback((feature: FeatureId, provider: ProviderId) => {
+    saveFeatureProvider(feature, provider);
+    setFeatureProviders((prev) => ({ ...prev, [feature]: provider }));
+  }, []);
+
+  const value = useMemo<ApiKeysContextValue>(
+    () => ({
+      apiKeys,
+      setApiKey,
+      hasKey,
+      clearAllKeys: handleClearAllKeys,
+      featureProviders,
+      setFeatureProvider,
+      isLoading,
+    }),
+    [apiKeys, setApiKey, hasKey, handleClearAllKeys, featureProviders, setFeatureProvider, isLoading],
+  );
 
   return (
     <ApiKeysContext.Provider value={value}>

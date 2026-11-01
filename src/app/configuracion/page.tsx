@@ -6,36 +6,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { PageHeader, ApiKeyInput } from '@/components/shared';
 import { useApiKeys } from '@/context';
+import { PROVIDER_IDS, PROVIDERS, type ProviderId } from '@/lib/providers';
 
 export default function ConfiguracionPage() {
-  const {
-    geminiApiKey,
-    perplexityApiKey,
-    setGeminiApiKey,
-    setPerplexityApiKey,
-    clearAllKeys,
-    hasGeminiKey,
-    hasPerplexityKey,
-  } = useApiKeys();
+  const { apiKeys, setApiKey, hasKey, clearAllKeys } = useApiKeys();
 
-  const handleSaveGemini = (key: string) => {
-    setGeminiApiKey(key);
-    toast.success('API Key de Gemini guardada correctamente');
+  const handleSave = (provider: ProviderId, key: string) => {
+    setApiKey(provider, key);
+    toast.success(`API Key de ${PROVIDERS[provider].name} guardada correctamente`);
   };
 
-  const handleSavePerplexity = (key: string) => {
-    setPerplexityApiKey(key);
-    toast.success('API Key de Perplexity guardada correctamente');
-  };
-
-  const handleClearGemini = () => {
-    setGeminiApiKey(null);
-    toast.info('API Key de Gemini eliminada');
-  };
-
-  const handleClearPerplexity = () => {
-    setPerplexityApiKey(null);
-    toast.info('API Key de Perplexity eliminada');
+  const handleClear = (provider: ProviderId) => {
+    setApiKey(provider, null);
+    toast.info(`API Key de ${PROVIDERS[provider].name} eliminada`);
   };
 
   const handleClearAll = () => {
@@ -43,8 +26,9 @@ export default function ConfiguracionPage() {
     toast.info('Todas las API keys han sido eliminadas');
   };
 
-  const configuredCount = [hasGeminiKey, hasPerplexityKey].filter(Boolean).length;
-  const allConfigured = configuredCount === 2;
+  const totalProviders = PROVIDER_IDS.length;
+  const configuredCount = PROVIDER_IDS.filter((id) => hasKey(id)).length;
+  const allConfigured = configuredCount === totalProviders;
 
   return (
     <main className="min-h-screen bg-neutral-950 relative overflow-hidden">
@@ -59,7 +43,7 @@ export default function ConfiguracionPage() {
         <PageHeader
           icon={Settings}
           title="Configuracion"
-          subtitle={`Configura tus API keys (${configuredCount}/2 configuradas)`}
+          subtitle={`Configura tus API keys (${configuredCount}/${totalProviders} configuradas)`}
           showAiBadge={false}
         />
 
@@ -95,127 +79,22 @@ export default function ConfiguracionPage() {
         </div>
 
         <div className="mt-6 space-y-4">
-          {/* API Keys Grid - Side by side */}
+          {/* API Keys Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* API Key de Gemini - Premium Card */}
-          <Card className={`
-            group relative overflow-hidden
-            bg-neutral-900/50 backdrop-blur-xl
-            border transition-all duration-500 ease-out
-            hover:shadow-[0_20px_50px_rgba(168,85,247,0.15)]
-            hover:-translate-y-1
-            ${hasGeminiKey
-              ? 'border-purple-500/30 shadow-[0_8px_30px_rgba(168,85,247,0.1)]'
-              : 'border-neutral-800 hover:border-purple-500/30'
-            }
-          `}>
-            {/* Gradient overlay on hover */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            {/* Status indicator */}
-            <div className="absolute top-4 right-4">
-              {hasGeminiKey ? (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs font-medium text-emerald-400">Activa</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-800/50 border border-neutral-700">
-                  <XCircle className="w-3 h-3 text-neutral-500" />
-                  <span className="text-xs font-medium text-neutral-500">Sin configurar</span>
-                </div>
-              )}
-            </div>
-
-            <CardHeader className="relative pb-2">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className={`absolute inset-0 rounded-xl blur-lg transition-all duration-300 ${hasGeminiKey ? 'bg-purple-500/30' : 'bg-purple-500/10 group-hover:bg-purple-500/20'}`} />
-                  <div className="relative p-2.5 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20">
-                    <Sparkles className="h-5 w-5 text-purple-400" />
-                  </div>
-                </div>
-                <div>
-                  <CardTitle className="text-lg bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                    Google Gemini
-                  </CardTitle>
-                  <CardDescription className="text-neutral-400 mt-0.5">
-                    Analisis tecnico con vision por IA
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="relative pt-4">
-              <ApiKeyInput
-                type="gemini"
-                value={geminiApiKey}
-                onSave={handleSaveGemini}
-                onClear={handleClearGemini}
+            {PROVIDER_IDS.map((id) => (
+              <ProviderKeyCard
+                key={id}
+                provider={id}
+                value={apiKeys[id]}
+                isActive={hasKey(id)}
+                onSave={(key) => handleSave(id, key)}
+                onClear={() => handleClear(id)}
               />
-            </CardContent>
-          </Card>
-
-            {/* API Key de Perplexity - Premium Card */}
-          <Card className={`
-            group relative overflow-hidden
-            bg-neutral-900/50 backdrop-blur-xl
-            border transition-all duration-500 ease-out
-            hover:shadow-[0_20px_50px_rgba(59,130,246,0.15)]
-            hover:-translate-y-1
-            ${hasPerplexityKey
-              ? 'border-blue-500/30 shadow-[0_8px_30px_rgba(59,130,246,0.1)]'
-              : 'border-neutral-800 hover:border-blue-500/30'
-            }
-          `}>
-            {/* Gradient overlay on hover */}
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-
-            {/* Status indicator */}
-            <div className="absolute top-4 right-4">
-              {hasPerplexityKey ? (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs font-medium text-emerald-400">Activa</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-800/50 border border-neutral-700">
-                  <XCircle className="w-3 h-3 text-neutral-500" />
-                  <span className="text-xs font-medium text-neutral-500">Sin configurar</span>
-                </div>
-              )}
-            </div>
-
-            <CardHeader className="relative pb-2">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className={`absolute inset-0 rounded-xl blur-lg transition-all duration-300 ${hasPerplexityKey ? 'bg-blue-500/30' : 'bg-blue-500/10 group-hover:bg-blue-500/20'}`} />
-                  <div className="relative p-2.5 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-500/20">
-                    <Sparkles className="h-5 w-5 text-blue-400" />
-                  </div>
-                </div>
-                <div>
-                  <CardTitle className="text-lg bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                    Perplexity
-                  </CardTitle>
-                  <CardDescription className="text-neutral-400 mt-0.5">
-                    Busqueda avanzada de noticias financieras
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="relative pt-4">
-              <ApiKeyInput
-                type="perplexity"
-                value={perplexityApiKey}
-                onSave={handleSavePerplexity}
-                onClear={handleClearPerplexity}
-              />
-            </CardContent>
-          </Card>
+            ))}
           </div>
 
           {/* Zona de peligro - Full width */}
-          {(hasGeminiKey || hasPerplexityKey) && (
+          {configuredCount > 0 && (
             <div className="
               relative overflow-hidden rounded-xl p-4
               bg-red-950/20 backdrop-blur-xl
@@ -269,5 +148,132 @@ export default function ConfiguracionPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+// ==========================================
+// Provider card
+// ==========================================
+
+interface ProviderTheme {
+  hoverShadow: string;
+  activeBorder: string;
+  idleBorder: string;
+  overlay: string;
+  glowActive: string;
+  glowIdle: string;
+  iconBox: string;
+  iconColor: string;
+  title: string;
+}
+
+const PROVIDER_THEMES: Record<ProviderId, ProviderTheme> = {
+  gemini: {
+    hoverShadow: 'hover:shadow-[0_20px_50px_rgba(168,85,247,0.15)]',
+    activeBorder: 'border-purple-500/30 shadow-[0_8px_30px_rgba(168,85,247,0.1)]',
+    idleBorder: 'border-neutral-800 hover:border-purple-500/30',
+    overlay: 'from-purple-500/5 via-transparent to-pink-500/5',
+    glowActive: 'bg-purple-500/30',
+    glowIdle: 'bg-purple-500/10 group-hover:bg-purple-500/20',
+    iconBox: 'from-purple-500/20 to-pink-500/20 border-purple-500/20',
+    iconColor: 'text-purple-400',
+    title: 'from-purple-400 to-pink-400',
+  },
+  perplexity: {
+    hoverShadow: 'hover:shadow-[0_20px_50px_rgba(59,130,246,0.15)]',
+    activeBorder: 'border-blue-500/30 shadow-[0_8px_30px_rgba(59,130,246,0.1)]',
+    idleBorder: 'border-neutral-800 hover:border-blue-500/30',
+    overlay: 'from-blue-500/5 via-transparent to-cyan-500/5',
+    glowActive: 'bg-blue-500/30',
+    glowIdle: 'bg-blue-500/10 group-hover:bg-blue-500/20',
+    iconBox: 'from-blue-500/20 to-cyan-500/20 border-blue-500/20',
+    iconColor: 'text-blue-400',
+    title: 'from-blue-400 to-cyan-400',
+  },
+  anthropic: {
+    hoverShadow: 'hover:shadow-[0_20px_50px_rgba(249,115,22,0.15)]',
+    activeBorder: 'border-orange-500/30 shadow-[0_8px_30px_rgba(249,115,22,0.1)]',
+    idleBorder: 'border-neutral-800 hover:border-orange-500/30',
+    overlay: 'from-orange-500/5 via-transparent to-amber-500/5',
+    glowActive: 'bg-orange-500/30',
+    glowIdle: 'bg-orange-500/10 group-hover:bg-orange-500/20',
+    iconBox: 'from-orange-500/20 to-amber-500/20 border-orange-500/20',
+    iconColor: 'text-orange-400',
+    title: 'from-orange-400 to-amber-400',
+  },
+  openai: {
+    hoverShadow: 'hover:shadow-[0_20px_50px_rgba(16,185,129,0.15)]',
+    activeBorder: 'border-emerald-500/30 shadow-[0_8px_30px_rgba(16,185,129,0.1)]',
+    idleBorder: 'border-neutral-800 hover:border-emerald-500/30',
+    overlay: 'from-emerald-500/5 via-transparent to-teal-500/5',
+    glowActive: 'bg-emerald-500/30',
+    glowIdle: 'bg-emerald-500/10 group-hover:bg-emerald-500/20',
+    iconBox: 'from-emerald-500/20 to-teal-500/20 border-emerald-500/20',
+    iconColor: 'text-emerald-400',
+    title: 'from-emerald-400 to-teal-400',
+  },
+};
+
+interface ProviderKeyCardProps {
+  provider: ProviderId;
+  value: string | null;
+  isActive: boolean;
+  onSave: (key: string) => void;
+  onClear: () => void;
+}
+
+function ProviderKeyCard({ provider, value, isActive, onSave, onClear }: ProviderKeyCardProps) {
+  const config = PROVIDERS[provider];
+  const theme = PROVIDER_THEMES[provider];
+
+  return (
+    <Card className={`
+      group relative overflow-hidden
+      bg-neutral-900/50 backdrop-blur-xl
+      border transition-all duration-500 ease-out
+      ${theme.hoverShadow}
+      hover:-translate-y-1
+      ${isActive ? theme.activeBorder : theme.idleBorder}
+    `}>
+      {/* Gradient overlay on hover */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${theme.overlay} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+
+      {/* Status indicator */}
+      <div className="absolute top-4 right-4">
+        {isActive ? (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-medium text-emerald-400">Activa</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-800/50 border border-neutral-700">
+            <XCircle className="w-3 h-3 text-neutral-500" />
+            <span className="text-xs font-medium text-neutral-500">Sin configurar</span>
+          </div>
+        )}
+      </div>
+
+      <CardHeader className="relative pb-2">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className={`absolute inset-0 rounded-xl blur-lg transition-all duration-300 ${isActive ? theme.glowActive : theme.glowIdle}`} />
+            <div className={`relative p-2.5 rounded-xl bg-gradient-to-br border ${theme.iconBox}`}>
+              <Sparkles className={`h-5 w-5 ${theme.iconColor}`} />
+            </div>
+          </div>
+          <div>
+            <CardTitle className={`text-lg bg-gradient-to-r ${theme.title} bg-clip-text text-transparent`}>
+              {config.name}
+            </CardTitle>
+            <CardDescription className="text-neutral-400 mt-0.5">
+              {config.description}
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="relative pt-4">
+        <ApiKeyInput type={provider} value={value} onSave={onSave} onClear={onClear} />
+      </CardContent>
+    </Card>
   );
 }
