@@ -4,6 +4,7 @@
 
 import { PROVIDERS, type ProviderId } from '@/lib/providers';
 import { analyzeWithGemini } from './gemini';
+import { analyzeWithClaude } from './anthropic';
 import { parseImageDataUri, parseTechnicalAnalysis } from './prompt';
 import type { ChartAdapter, ChartAnalysisOptions, TechnicalAnalysisOutput } from './types';
 
@@ -11,6 +12,7 @@ export type { ChartAnalysisOptions, TechnicalAnalysisOutput } from './types';
 
 const CHART_ADAPTERS: Partial<Record<ProviderId, ChartAdapter>> = {
   gemini: analyzeWithGemini,
+  anthropic: analyzeWithClaude,
 };
 
 export async function analyzeChart(

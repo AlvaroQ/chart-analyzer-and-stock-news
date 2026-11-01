@@ -53,6 +53,19 @@ export interface ChartAnalysisOptions {
 /** Un adaptador envia la imagen al proveedor y devuelve el texto JSON crudo */
 export type ChartAdapter = (apiKey: string, image: ChartImage) => Promise<string>;
 
+const LEVELS_SCHEMA = {
+  type: 'array',
+  items: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['level', 'reason'],
+    properties: {
+      level: { type: 'string' },
+      reason: { type: 'string' },
+    },
+  },
+} as const;
+
 /**
  * JSON Schema del resultado, para proveedores con salida estructurada
  */
@@ -87,8 +100,8 @@ export const TECHNICAL_ANALYSIS_JSON_SCHEMA = {
             longTerm: { type: 'string' },
           },
         },
-        supports: { $ref: '#/$defs/levels' },
-        resistances: { $ref: '#/$defs/levels' },
+        supports: LEVELS_SCHEMA,
+        resistances: LEVELS_SCHEMA,
       },
     },
     indicators: {
@@ -115,20 +128,6 @@ export const TECHNICAL_ANALYSIS_JSON_SCHEMA = {
             comment: { type: 'string' },
             isVisible: { type: 'boolean' },
           },
-        },
-      },
-    },
-  },
-  $defs: {
-    levels: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['level', 'reason'],
-        properties: {
-          level: { type: 'string' },
-          reason: { type: 'string' },
         },
       },
     },
