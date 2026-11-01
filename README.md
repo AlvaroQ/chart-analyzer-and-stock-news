@@ -30,9 +30,11 @@ Una aplicación full-stack de análisis financiero potenciada por inteligencia a
 
 ProjectIA es una plataforma profesional que combina dos capacidades fundamentales para el análisis de inversiones:
 
-1. **Búsqueda Avanzada de Noticias**: Utiliza Perplexity AI con acceso a internet en tiempo real para obtener las noticias financieras más relevantes sobre cualquier ticker bursátil.
+1. **Búsqueda Avanzada de Noticias**: Utiliza Perplexity AI, Claude u OpenAI (con búsqueda web en tiempo real) para obtener las noticias financieras más relevantes sobre cualquier ticker bursátil.
 
-2. **Análisis Técnico con IA**: Emplea Google Gemini 2.0 Flash para analizar imágenes de gráficos de velas japonesas, identificando patrones, niveles de soporte/resistencia e indicadores técnicos.
+2. **Análisis Técnico con IA**: Emplea Google Gemini, Claude u OpenAI para analizar imágenes de gráficos de velas japonesas, identificando patrones, niveles de soporte/resistencia e indicadores técnicos.
+
+En cada funcionalidad eliges el proveedor con el selector de la propia página; la elección se guarda en tu navegador.
 
 ---
 
@@ -53,10 +55,14 @@ ProjectIA es una plataforma profesional que combina dos capacidades fundamentale
 
 ### Proveedores de IA
 
-| Proveedor         | Modelo           | Propósito                           |
-| ----------------- | ---------------- | ----------------------------------- |
-| **Perplexity AI** | sonar-pro        | Búsqueda de noticias con acceso web |
-| **Google Gemini** | gemini-2.0-flash | Análisis técnico de gráficos        |
+| Proveedor            | Modelo             | Funcionalidades                                     |
+| -------------------- | ------------------ | --------------------------------------------------- |
+| **Perplexity AI**    | `sonar-pro`        | Búsqueda de noticias (por defecto)                  |
+| **Google Gemini**    | `gemini-2.0-flash` | Análisis técnico (por defecto)                      |
+| **Anthropic Claude** | `claude-opus-5-5`  | Análisis técnico y búsqueda de noticias (web search) |
+| **OpenAI**           | `gpt-6-astra`      | Análisis técnico y búsqueda de noticias (web search) |
+
+Todas las llamadas se hacen desde el navegador con la API key de cada usuario (BYOK). Los adaptadores de cada proveedor están en `src/services/chart/` y `src/services/news/`, y el registro de proveedores en `src/lib/providers.ts`.
 
 ### Estructura de Directorios
 
@@ -138,12 +144,12 @@ src/
 
 ## Agentes de IA Integrados
 
-### 1. Agente de Búsqueda de Noticias (Perplexity AI)
+### 1. Agente de Búsqueda de Noticias (Perplexity AI, Claude u OpenAI)
 
-**Modelo**: `sonar-pro`
+**Modelos**: `sonar-pro` (Perplexity), `claude-opus-5-5` con la herramienta `web_search` (Claude), `gpt-6-astra` con la herramienta `web_search` (OpenAI)
 **Propósito**: Búsqueda y síntesis de noticias financieras en tiempo real
 
-#### Configuración
+#### Configuración (Perplexity)
 
 ```typescript
 {
@@ -163,9 +169,9 @@ src/
 - **Clasificación de impacto**: HIGH, MEDIUM, LOW
 - **Etiquetado semántico**: earnings, acquisition, regulatory, market, etc.
 
-### 2. Agente de Análisis Técnico (Google Gemini 2.0 Flash)
+### 2. Agente de Análisis Técnico (Google Gemini, Claude u OpenAI)
 
-**Modelo**: `googleai/gemini-2.0-flash`
+**Modelos**: `gemini-2.0-flash` (Gemini), `claude-opus-5-5` (Claude), `gpt-6-astra` (OpenAI). Claude y OpenAI usan salida estructurada con JSON Schema.
 **Propósito**: Análisis visual de gráficos de velas japonesas
 
 #### Capacidades de Análisis
@@ -210,7 +216,7 @@ Ver documentación completa: [docs/PROMPT_ENGINEERING.md](docs/PROMPT_ENGINEERIN
 - **Validación**: Zod para inputs (ticker, imágenes, env vars)
 - **Rate Limiting**: 10 req/min con headers informativos
 - **Logging seguro**: Sanitización de datos sensibles
-- **API Keys**: Server-side only, nunca expuestas al cliente
+- **API Keys (BYOK)**: cada usuario introduce sus propias keys en `/configuracion`; se guardan solo en su navegador (localStorage) y se envían directamente a cada proveedor
 
 Ver documentación completa: [docs/SECURITY.md](docs/SECURITY.md)
 
@@ -222,8 +228,9 @@ Ver documentación completa: [docs/SECURITY.md](docs/SECURITY.md)
 
 - Node.js 18.x o superior
 - npm, yarn, pnpm o bun
-- Cuenta y API key de [Perplexity AI](https://www.perplexity.ai/)
-- Cuenta y API key de [Google AI Studio](https://aistudio.google.com/)
+- API key de al menos un proveedor por funcionalidad:
+  - [Google AI Studio](https://aistudio.google.com/apikey) (Gemini) o [Anthropic](https://platform.claude.com/settings/keys) (Claude) u [OpenAI](https://platform.openai.com/api-keys) para el análisis técnico
+  - [Perplexity AI](https://www.perplexity.ai/settings/api), Anthropic u OpenAI para la búsqueda de noticias
 
 ### Pasos de Instalación
 
@@ -240,26 +247,13 @@ cd projectia
 npm install
 ```
 
-3. **Configurar variables de entorno**
-
-Crear archivo `.env.local` en la raíz del proyecto:
-
-```env
-# API Keys (requeridas)
-GOOGLE_GEMINI_API_KEY=tu_api_key_de_gemini
-PERPLEXITY_API_KEY=tu_api_key_de_perplexity
-
-# Entorno
-NODE_ENV=development
-```
-
-4. **Iniciar servidor de desarrollo**
+3. **Iniciar servidor de desarrollo**
 
 ```bash
 npm run dev
 ```
 
-5. **Abrir en navegador**
+4. **Abrir en navegador** y configurar tus API keys en `/configuracion`
 
 ```
 http://localhost:3000
@@ -273,6 +267,7 @@ http://localhost:3000
 | `npm run build` | Compila para producción       |
 | `npm run start` | Inicia servidor de producción |
 | `npm run lint`  | Ejecuta ESLint                |
+| `npm test`      | Ejecuta los tests (Vitest)    |
 
 ---
 
@@ -412,6 +407,8 @@ Desarrollado con tecnologías de:
 - [Google Genkit](https://firebase.google.com/docs/genkit) - Framework IA
 - [Perplexity AI](https://www.perplexity.ai/) - Búsqueda con IA
 - [Google Gemini](https://deepmind.google/technologies/gemini/) - Modelo multimodal
+- [Anthropic Claude](https://www.anthropic.com/claude) - Modelo multimodal con búsqueda web
+- [OpenAI](https://openai.com/api/) - Modelo multimodal con búsqueda web
 
 <p align="center">
   <a href="https://www.buymeacoffee.com/alvaroqp" target="_blank">
