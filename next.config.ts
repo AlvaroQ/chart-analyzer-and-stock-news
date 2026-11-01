@@ -42,7 +42,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self'",
-      "connect-src 'self' https://api.perplexity.ai https://generativelanguage.googleapis.com https://api.anthropic.com",
+      "connect-src 'self' https://api.perplexity.ai https://generativelanguage.googleapis.com https://api.anthropic.com https://api.openai.com",
       "frame-ancestors 'none'",
     ].join("; "),
   },

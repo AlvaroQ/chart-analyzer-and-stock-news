@@ -5,6 +5,7 @@
 import { PROVIDERS, type ProviderId } from '@/lib/providers';
 import { searchWithPerplexity } from './perplexity';
 import { searchWithClaude } from './anthropic';
+import { searchWithOpenAI } from './openai';
 import { parseNewsResponse, validateTicker } from './prompt';
 import type { NewsAdapter, NewsSearchOptions, NewsSearchResult } from './types';
 
@@ -13,6 +14,7 @@ export type { NewsSearchOptions, NewsSearchResult } from './types';
 const NEWS_ADAPTERS: Partial<Record<ProviderId, NewsAdapter>> = {
   perplexity: searchWithPerplexity,
   anthropic: searchWithClaude,
+  openai: searchWithOpenAI,
 };
 
 export async function searchNews(
