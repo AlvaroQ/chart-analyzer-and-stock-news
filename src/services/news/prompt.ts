@@ -1,18 +1,11 @@
-'use client';
-
 /**
- * Cliente de Perplexity API para llamadas directas desde el navegador
- * Sistema BYOK (Bring Your Own Key)
+ * Prompts, validacion y parseo de noticias, compartidos por todos los proveedores
  */
 
-import { API_CONFIG, VALIDATION } from '@/lib/constants';
-import type { NewsItem, PerplexityMessage, PerplexityResponse } from '@/types';
+import { VALIDATION } from '@/lib/constants';
+import type { NewsItem } from '@/types';
 
-// ==========================================
-// Prompts
-// ==========================================
-
-const SYSTEM_PROMPT = `Eres un especialista en análisis de noticias financieras con acceso a información de mercado en tiempo real. Tu rol es extraer y validar noticias relevantes sobre acciones específicas, priorizando:
+export const SYSTEM_PROMPT = `Eres un especialista en análisis de noticias financieras con acceso a información de mercado en tiempo real. Tu rol es extraer y validar noticias relevantes sobre acciones específicas, priorizando:
 1. Fuentes verificadas y reconocidas (Reuters, Bloomberg, Financial Times, AP, etc.)
 2. Información factual y contrastada, no especulaciones
 3. Impacto en el mercado (relevancia para inversores)
@@ -23,7 +16,7 @@ Siempre valida que:
 - Las fechas sean recientes (últimas 72 horas preferentemente)
 - Los resúmenes capturen información material, no trivial`;
 
-function buildUserPrompt(ticker: string): string {
+export function buildUserPrompt(ticker: string): string {
   return `Busca y extrae las últimas 5 noticias financieras MÁS RELEVANTES sobre la acción ${ticker}.
 
 CRITERIOS DE BÚSQUEDA:
@@ -56,14 +49,10 @@ REGLAS:
 - Solo devuelve el array JSON, nada más`;
 }
 
-// ==========================================
-// Helpers
-// ==========================================
-
 /**
  * Valida el formato del ticker
  */
-function validateTicker(ticker: string): { valid: boolean; error?: string; normalized?: string } {
+export function validateTicker(ticker: string): { valid: boolean; error?: string; normalized?: string } {
   const trimmed = ticker.trim().toUpperCase();
 
   if (trimmed.length < VALIDATION.TICKER.MIN_LENGTH) {
@@ -84,7 +73,7 @@ function validateTicker(ticker: string): { valid: boolean; error?: string; norma
 /**
  * Parsea y valida la respuesta de la API
  */
-function parseNewsResponse(content: string): NewsItem[] {
+export function parseNewsResponse(content: string): NewsItem[] {
   // Limpiar bloques de codigo markdown
   let cleanContent = content.trim();
   cleanContent = cleanContent.replace(/^```json?\s*/i, '');
@@ -104,7 +93,7 @@ function parseNewsResponse(content: string): NewsItem[] {
       const parsed = JSON.parse(singleMatch[0]);
       rawNews = Array.isArray(parsed) ? parsed : [parsed];
     } else {
-      console.warn('No se encontro JSON en la respuesta de Perplexity');
+      console.warn('No se encontro JSON en la respuesta del modelo');
       return [];
     }
   }
@@ -134,104 +123,4 @@ function parseNewsResponse(content: string): NewsItem[] {
         ? item.tags.filter((t): t is string => typeof t === 'string')
         : [],
     }));
-}
-
-// ==========================================
-// Cliente Principal
-// ==========================================
-
-export interface PerplexitySearchOptions {
-  apiKey: string;
-  ticker: string;
-}
-
-export interface PerplexitySearchResult {
-  ticker: string;
-  news: NewsItem[];
-}
-
-/**
- * Busca noticias financieras usando Perplexity API directamente desde el cliente
- */
-export async function searchNewsWithPerplexity({
-  apiKey,
-  ticker,
-}: PerplexitySearchOptions): Promise<PerplexitySearchResult> {
-  // Validar ticker
-  const tickerValidation = validateTicker(ticker);
-  if (!tickerValidation.valid) {
-    throw new Error(tickerValidation.error);
-  }
-
-  const normalizedTicker = tickerValidation.normalized!;
-
-  // Construir mensajes
-  const messages: PerplexityMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: buildUserPrompt(normalizedTicker) },
-  ];
-
-  // Llamar a la API
-  const controller = new AbortController();
-  const timeoutId = setTimeout(
-    () => controller.abort(),
-    API_CONFIG.PERPLEXITY.TIMEOUT_MS
-  );
-
-  let response: Response;
-  try {
-    response = await fetch(API_CONFIG.PERPLEXITY.URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: API_CONFIG.PERPLEXITY.MODEL,
-        messages,
-        temperature: API_CONFIG.PERPLEXITY.TEMPERATURE,
-        max_tokens: API_CONFIG.PERPLEXITY.MAX_TOKENS,
-        top_p: API_CONFIG.PERPLEXITY.TOP_P,
-        search_recency_filter: API_CONFIG.PERPLEXITY.SEARCH_RECENCY,
-        web_search_options: {
-          search_context_size: API_CONFIG.PERPLEXITY.SEARCH_CONTEXT_SIZE,
-        },
-      }),
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('La solicitud tardo demasiado. Intente nuevamente.');
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  // Manejar errores de la API
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error('API Key invalida. Verifica tu configuracion.');
-    }
-    if (response.status === 429) {
-      throw new Error('Demasiadas solicitudes. Espera un momento.');
-    }
-    throw new Error(`Error de la API de Perplexity: ${response.status}`);
-  }
-
-  // Parsear respuesta
-  const data: PerplexityResponse = await response.json();
-  const content = data.choices[0]?.message?.content;
-
-  if (!content) {
-    throw new Error('No se recibio respuesta de la API');
-  }
-
-  // Parsear noticias
-  const news = parseNewsResponse(content);
-
-  return {
-    ticker: normalizedTicker,
-    news,
-  };
 }

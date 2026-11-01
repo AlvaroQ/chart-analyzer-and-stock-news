@@ -30,9 +30,9 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { useTechnicalAnalysis } from "@/hooks"
-import { ApiKeyRequired } from "@/components/shared"
+import { ApiKeyRequired, ProviderSelector } from "@/components/shared"
+import { PROVIDERS } from "@/lib/providers"
 import { cn } from "@/lib/utils"
-import type { TechnicalAnalysisOutput } from "@/services/gemini-client"
 
 // ============================================
 // COMPONENTES DE VISUALIZACION PREMIUM
@@ -167,7 +167,7 @@ const MacdIndicator = ({ status, comment, isVisible }: { status: string, comment
 export default function TechnicalAnalysisPage() {
   const [imagePreview, setImagePreview] = React.useState<string | null>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
-  const { result: analysisResult, isLoading, error, analyze, reset: resetAnalysis } = useTechnicalAnalysis()
+  const { result: analysisResult, isLoading, error, analyze, reset: resetAnalysis, provider } = useTechnicalAnalysis()
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -502,7 +502,7 @@ export default function TechnicalAnalysisPage() {
                 <h1 className="text-lg font-bold text-white font-[family-name:var(--font-outfit)]">
                   Analisis Tecnico
                 </h1>
-                <p className="text-xs text-zinc-500 hidden sm:block">Potenciado por Gemini 2.0 Flash</p>
+                <p className="text-xs text-zinc-500 hidden sm:block">Potenciado por {PROVIDERS[provider].modelLabel}</p>
               </div>
             </div>
           </div>
@@ -517,7 +517,8 @@ export default function TechnicalAnalysisPage() {
 
       {/* Main Content */}
       <main className="relative z-10 flex-1 container mx-auto p-4 md:p-6 lg:p-8 overflow-hidden">
-        <ApiKeyRequired type="gemini">
+        <ProviderSelector feature="chart" className="mb-4" />
+        <ApiKeyRequired feature="chart">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 h-full">
 
           {/* ==================== */}

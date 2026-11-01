@@ -8,3 +8,4 @@ export { EmptyState } from "./EmptyState";
 export { PageHeader } from "./PageHeader";
 export { ApiKeyInput } from "./ApiKeyInput";
 export { ApiKeyRequired } from "./ApiKeyRequired";
+export { ProviderSelector } from "./ProviderSelector";

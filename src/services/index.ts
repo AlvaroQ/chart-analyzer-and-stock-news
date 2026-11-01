@@ -2,8 +2,8 @@
  * Exports centralizados de servicios cliente
  */
 
-export { searchNewsWithPerplexity } from './perplexity-client';
-export type { PerplexitySearchOptions, PerplexitySearchResult } from './perplexity-client';
+export { analyzeChart } from './chart';
+export type { ChartAnalysisOptions, TechnicalAnalysisOutput } from './chart';
 
-export { analyzeTechnicalChart } from './gemini-client';
-export type { GeminiAnalysisOptions, TechnicalAnalysisOutput } from './gemini-client';
+export { searchNews } from './news';
+export type { NewsSearchOptions, NewsSearchResult } from './news';

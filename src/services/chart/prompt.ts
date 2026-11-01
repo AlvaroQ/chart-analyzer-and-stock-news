@@ -1,63 +1,10 @@
-'use client';
-
 /**
- * Cliente de Google Gemini API para llamadas directas desde el navegador
- * Sistema BYOK (Bring Your Own Key)
+ * Prompt y parseo del analisis tecnico, compartidos por todos los proveedores
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { API_CONFIG } from '@/lib/constants';
+import type { ChartImage, TechnicalAnalysisOutput } from './types';
 
-// ==========================================
-// Tipos
-// ==========================================
-
-export interface TechnicalAnalysisOutput {
-  analysis: {
-    generalTrend: string;
-    patterns: string;
-    signals: string;
-    conclusion: string;
-  };
-  summary: {
-    trends: {
-      shortTerm: string;
-      mediumTerm: string;
-      longTerm: string;
-    };
-    supports: Array<{
-      level: string;
-      reason: string;
-    }>;
-    resistances: Array<{
-      level: string;
-      reason: string;
-    }>;
-  };
-  indicators: {
-    rsi: {
-      value: number;
-      status: string;
-      isVisible: boolean;
-    };
-    macd: {
-      status: string;
-      comment: string;
-      isVisible: boolean;
-    };
-  };
-}
-
-export interface GeminiAnalysisOptions {
-  apiKey: string;
-  imageDataUri: string;
-}
-
-// ==========================================
-// Prompt
-// ==========================================
-
-const TECHNICAL_ANALYSIS_PROMPT = `# ROL
+export const TECHNICAL_ANALYSIS_PROMPT = `# ROL
 Actúa como un **Analista Técnico Senior de Inversiones** con experiencia en 'Price Action' (Acción del Precio) y análisis chartista institucional. Tu objetivo es proporcionar un análisis objetivo, profesional y cauteloso basado estrictamente en la evidencia visual proporcionada.
 
 # TAREA
@@ -126,37 +73,30 @@ Sintetiza todo en una visión accionable. ¿El escenario favorece a los toros (c
 
 RESPONDE ÚNICAMENTE CON EL JSON, sin texto adicional.`;
 
-// ==========================================
-// Helpers
-// ==========================================
-
 /**
- * Convierte un Data URI a formato para Gemini
+ * Valida un Data URI de imagen y lo separa en tipo MIME y datos base64
  */
-function dataUriToGeminiPart(dataUri: string) {
+export function parseImageDataUri(dataUri: string): ChartImage {
+  if (!dataUri || !dataUri.startsWith('data:image/')) {
+    throw new Error('Imagen invalida. Debe ser un Data URI de imagen.');
+  }
   const match = dataUri.match(/^data:([^;]+);base64,(.+)$/);
   if (!match) {
     throw new Error('Formato de imagen invalido');
   }
-  return {
-    inlineData: {
-      mimeType: match[1],
-      data: match[2],
-    },
-  };
+  return { dataUri, mimeType: match[1], data: match[2] };
 }
 
 /**
- * Parsea la respuesta JSON de Gemini
+ * Parsea la respuesta JSON del modelo
  */
-function parseGeminiResponse(content: string): TechnicalAnalysisOutput {
+export function parseTechnicalAnalysis(content: string): TechnicalAnalysisOutput {
   // Limpiar bloques de codigo markdown
   let cleanContent = content.trim();
   cleanContent = cleanContent.replace(/^```json?\s*/i, '');
   cleanContent = cleanContent.replace(/```\s*$/i, '');
   cleanContent = cleanContent.trim();
 
-  // Parsear JSON
   const parsed = JSON.parse(cleanContent);
 
   // Validar estructura basica
@@ -165,63 +105,4 @@ function parseGeminiResponse(content: string): TechnicalAnalysisOutput {
   }
 
   return parsed as TechnicalAnalysisOutput;
-}
-
-// ==========================================
-// Cliente Principal
-// ==========================================
-
-/**
- * Analiza un grafico tecnico usando Gemini API directamente desde el cliente
- */
-export async function analyzeTechnicalChart({
-  apiKey,
-  imageDataUri,
-}: GeminiAnalysisOptions): Promise<TechnicalAnalysisOutput> {
-  // Validar imagen
-  if (!imageDataUri || !imageDataUri.startsWith('data:image/')) {
-    throw new Error('Imagen invalida. Debe ser un Data URI de imagen.');
-  }
-
-  // Inicializar cliente
-  const genAI = new GoogleGenerativeAI(apiKey);
-
-  // Usar modelo de Gemini (extraer nombre del modelo de la config)
-  const modelName = API_CONFIG.GEMINI.MODEL.replace('googleai/', '');
-  const model = genAI.getGenerativeModel({ model: modelName });
-
-  // Preparar imagen
-  const imagePart = dataUriToGeminiPart(imageDataUri);
-
-  // Generar contenido
-  try {
-    const result = await model.generateContent([
-      TECHNICAL_ANALYSIS_PROMPT,
-      imagePart,
-    ]);
-
-    const response = result.response;
-    const text = response.text();
-
-    if (!text) {
-      throw new Error('No se recibio respuesta del modelo');
-    }
-
-    // Parsear respuesta
-    return parseGeminiResponse(text);
-  } catch (error) {
-    if (error instanceof Error) {
-      // Manejar errores especificos de la API
-      if (error.message.includes('API_KEY_INVALID') || error.message.includes('401')) {
-        throw new Error('API Key invalida. Verifica tu configuracion.');
-      }
-      if (error.message.includes('QUOTA_EXCEEDED') || error.message.includes('429')) {
-        throw new Error('Limite de solicitudes excedido. Espera un momento.');
-      }
-      if (error.message.includes('SAFETY')) {
-        throw new Error('La imagen fue bloqueada por filtros de seguridad.');
-      }
-    }
-    throw error;
-  }
 }

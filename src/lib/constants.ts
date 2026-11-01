@@ -18,7 +18,7 @@ export const API_CONFIG = {
     TIMEOUT_MS: 30000,
   },
   GEMINI: {
-    MODEL: "googleai/gemini-2.0-flash",
+    MODEL: "gemini-2.0-flash",
   },
 } as const;
 

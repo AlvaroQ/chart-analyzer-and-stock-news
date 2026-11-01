@@ -2,7 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import { useApiKeys } from '@/context';
-import { analyzeTechnicalChart, type TechnicalAnalysisOutput } from '@/services/gemini-client';
+import { analyzeChart, type TechnicalAnalysisOutput } from '@/services';
+import { PROVIDERS, type ProviderId } from '@/lib/providers';
 
 /**
  * Estado del hook de analisis tecnico
@@ -26,13 +27,15 @@ interface UseTechnicalAnalysisReturn extends UseTechnicalAnalysisState {
   reset: () => void;
   /** Indica si la API key esta configurada */
   hasApiKey: boolean;
+  /** Proveedor seleccionado para esta funcionalidad */
+  provider: ProviderId;
 }
 
 /**
  * Hook personalizado para analisis tecnico de graficos
  *
  * Utiliza el sistema BYOK (Bring Your Own Key) para llamar
- * directamente a la API de Gemini desde el cliente.
+ * directamente a la API del proveedor elegido desde el cliente.
  *
  * @example
  * ```tsx
@@ -52,9 +55,10 @@ interface UseTechnicalAnalysisReturn extends UseTechnicalAnalysisState {
  * ```
  */
 export function useTechnicalAnalysis(): UseTechnicalAnalysisReturn {
-  const { apiKeys, hasKey } = useApiKeys();
-  const geminiApiKey = apiKeys.gemini;
-  const hasGeminiKey = hasKey('gemini');
+  const { apiKeys, hasKey, featureProviders } = useApiKeys();
+  const provider = featureProviders.chart;
+  const apiKey = apiKeys[provider];
+  const hasProviderKey = hasKey(provider);
 
   const [state, setState] = useState<UseTechnicalAnalysisState>({
     result: null,
@@ -76,10 +80,10 @@ export function useTechnicalAnalysis(): UseTechnicalAnalysisReturn {
     }
 
     // Verificar que la API key este configurada
-    if (!hasGeminiKey || !geminiApiKey) {
+    if (!hasProviderKey || !apiKey) {
       setState((prev) => ({
         ...prev,
-        error: 'API Key de Gemini no configurada. Ve a Configuracion para agregarla.',
+        error: `API Key de ${PROVIDERS[provider].name} no configurada. Ve a Configuracion para agregarla.`,
       }));
       return;
     }
@@ -92,8 +96,8 @@ export function useTechnicalAnalysis(): UseTechnicalAnalysisReturn {
     }));
 
     try {
-      const result = await analyzeTechnicalChart({
-        apiKey: geminiApiKey,
+      const result = await analyzeChart(provider, {
+        apiKey,
         imageDataUri,
       });
 
@@ -111,7 +115,7 @@ export function useTechnicalAnalysis(): UseTechnicalAnalysisReturn {
         error: err instanceof Error ? err.message : 'Error desconocido al analizar',
       });
     }
-  }, [geminiApiKey, hasGeminiKey]);
+  }, [apiKey, hasProviderKey, provider]);
 
   /**
    * Resetea el estado del hook
@@ -128,6 +132,7 @@ export function useTechnicalAnalysis(): UseTechnicalAnalysisReturn {
     ...state,
     analyze,
     reset,
-    hasApiKey: hasGeminiKey,
+    hasApiKey: hasProviderKey,
+    provider,
   };
 }

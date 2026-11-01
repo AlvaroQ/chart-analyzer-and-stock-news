@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { searchNewsWithPerplexity } from "@/services/perplexity-client";
+import { searchNews } from "@/services";
+import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import { useApiKeys } from "@/context";
 import type { NewsItem } from "@/types";
 
@@ -31,13 +32,15 @@ interface UseNewsSearchReturn extends UseNewsSearchState {
   reset: () => void;
   /** Indica si la API key esta configurada */
   hasApiKey: boolean;
+  /** Proveedor seleccionado para esta funcionalidad */
+  provider: ProviderId;
 }
 
 /**
  * Hook personalizado para busqueda de noticias financieras
  *
  * Utiliza el sistema BYOK (Bring Your Own Key) para llamar
- * directamente a la API de Perplexity desde el cliente.
+ * directamente a la API del proveedor elegido desde el cliente.
  *
  * @example
  * ```tsx
@@ -57,9 +60,10 @@ interface UseNewsSearchReturn extends UseNewsSearchState {
  * ```
  */
 export function useNewsSearch(): UseNewsSearchReturn {
-  const { apiKeys, hasKey } = useApiKeys();
-  const perplexityApiKey = apiKeys.perplexity;
-  const hasPerplexityKey = hasKey('perplexity');
+  const { apiKeys, hasKey, featureProviders } = useApiKeys();
+  const provider = featureProviders.news;
+  const apiKey = apiKeys[provider];
+  const hasProviderKey = hasKey(provider);
 
   const [state, setState] = useState<UseNewsSearchState>({
     news: [],
@@ -84,10 +88,10 @@ export function useNewsSearch(): UseNewsSearchReturn {
     }
 
     // Verificar que la API key este configurada
-    if (!hasPerplexityKey || !perplexityApiKey) {
+    if (!hasProviderKey || !apiKey) {
       setState((prev) => ({
         ...prev,
-        error: "API Key de Perplexity no configurada. Ve a Configuracion para agregarla.",
+        error: `API Key de ${PROVIDERS[provider].name} no configurada. Ve a Configuracion para agregarla.`,
       }));
       return;
     }
@@ -101,8 +105,8 @@ export function useNewsSearch(): UseNewsSearchReturn {
     }));
 
     try {
-      const result = await searchNewsWithPerplexity({
-        apiKey: perplexityApiKey,
+      const result = await searchNews(provider, {
+        apiKey,
         ticker: trimmedTicker,
       });
 
@@ -123,7 +127,7 @@ export function useNewsSearch(): UseNewsSearchReturn {
         error: err instanceof Error ? err.message : "Error desconocido",
       }));
     }
-  }, [perplexityApiKey, hasPerplexityKey]);
+  }, [apiKey, hasProviderKey, provider]);
 
   /**
    * Resetea el estado del hook
@@ -142,6 +146,7 @@ export function useNewsSearch(): UseNewsSearchReturn {
     ...state,
     search,
     reset,
-    hasApiKey: hasPerplexityKey,
+    hasApiKey: hasProviderKey,
+    provider,
   };
 }

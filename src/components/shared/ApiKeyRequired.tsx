@@ -5,16 +5,18 @@ import Link from 'next/link';
 import { KeyRound, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApiKeys } from '@/context';
-import type { ApiKeyType } from '@/types';
+import type { FeatureId } from '@/types';
 import { API_KEY_CONFIG } from '@/lib/api-keys-validation';
 
 interface ApiKeyRequiredProps {
-  type: ApiKeyType;
+  /** Funcionalidad protegida; se exige la key del proveedor elegido para ella */
+  feature: FeatureId;
   children: ReactNode;
 }
 
-export function ApiKeyRequired({ type, children }: ApiKeyRequiredProps) {
-  const { hasKey: hasProviderKey, isLoading } = useApiKeys();
+export function ApiKeyRequired({ feature, children }: ApiKeyRequiredProps) {
+  const { hasKey: hasProviderKey, featureProviders, isLoading } = useApiKeys();
+  const type = featureProviders[feature];
 
   const hasKey = hasProviderKey(type);
   const config = API_KEY_CONFIG[type];
