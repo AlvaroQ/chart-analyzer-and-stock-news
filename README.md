@@ -293,6 +293,10 @@ http://localhost:3000
    - **Niveles**: Soportes y resistencias
    - **Indicadores**: RSI y MACD
 
+<p align="center">
+  <img src="assets/analisis-tecnico.png" alt="Análisis técnico de un gráfico con Claude" width="800">
+</p>
+
 ---
 
 ## API Reference
