@@ -20,7 +20,7 @@ import {
   removeApiKey,
   clearAllApiKeys,
 } from '@/lib/api-keys-storage';
-import { getFeatureProvider, saveFeatureProvider } from '@/lib/provider-preferences';
+import { resolveFeatureProvider, saveFeatureProvider } from '@/lib/provider-preferences';
 import {
   DEFAULT_FEATURE_PROVIDER,
   FEATURE_IDS,
@@ -42,19 +42,14 @@ interface ApiKeysProviderProps {
 
 export function ApiKeysProvider({ children }: ApiKeysProviderProps) {
   const [apiKeys, setApiKeys] = useState<ApiKeys>(emptyKeys);
-  const [featureProviders, setFeatureProviders] =
-    useState<Record<FeatureId, ProviderId>>(DEFAULT_FEATURE_PROVIDER);
+  // Incrementa cuando el usuario elige un proveedor, para recalcular la seleccion
+  const [preferencesVersion, setPreferencesVersion] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   // Cargar keys y preferencias de localStorage al montar
   useEffect(() => {
     setApiKeys(
       Object.fromEntries(PROVIDER_IDS.map((id) => [id, getApiKey(id)])) as ApiKeys,
-    );
-    setFeatureProviders(
-      Object.fromEntries(
-        FEATURE_IDS.map((feature) => [feature, getFeatureProvider(feature)]),
-      ) as Record<FeatureId, ProviderId>,
     );
     setIsLoading(false);
   }, []);
@@ -83,8 +78,18 @@ export function ApiKeysProvider({ children }: ApiKeysProviderProps) {
 
   const setFeatureProvider = useCallback((feature: FeatureId, provider: ProviderId) => {
     saveFeatureProvider(feature, provider);
-    setFeatureProviders((prev) => ({ ...prev, [feature]: provider }));
+    setPreferencesVersion((v) => v + 1);
   }, []);
+
+  // Proveedor efectivo por funcionalidad: eleccion explicita o, si no hay,
+  // un proveedor con API key configurada
+  const featureProviders = useMemo(() => {
+    void preferencesVersion;
+    if (isLoading) return DEFAULT_FEATURE_PROVIDER;
+    return Object.fromEntries(
+      FEATURE_IDS.map((feature) => [feature, resolveFeatureProvider(feature, hasKey)]),
+    ) as Record<FeatureId, ProviderId>;
+  }, [hasKey, isLoading, preferencesVersion]);
 
   const value = useMemo<ApiKeysContextValue>(
     () => ({
