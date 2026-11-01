@@ -4,7 +4,7 @@ Una aplicación full-stack de análisis financiero potenciada por inteligencia a
 
 ## Demo
 
-**https://project-ia-three.vercel.app/**
+**https://chart-analyzer-and-stock-news.vercel.app/**
 
 <p align="center">
   <img src="assets/screenshot.png" alt="Vista previa de la aplicación" width="800">
