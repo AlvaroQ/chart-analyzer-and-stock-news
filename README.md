@@ -21,7 +21,6 @@ Una aplicación full-stack de análisis financiero potenciada por inteligencia a
 - [Seguridad](#seguridad)
 - [Instalación](#instalación)
 - [Uso](#uso)
-- [API Reference](#api-reference)
 - [Estructura del Proyecto](#estructura-del-proyecto)
 
 ---
@@ -34,7 +33,7 @@ ProjectIA es una plataforma profesional que combina dos capacidades fundamentale
 
 2. **Análisis Técnico con IA**: Emplea Google Gemini, Claude u OpenAI para analizar imágenes de gráficos de velas japonesas, identificando patrones, niveles de soporte/resistencia e indicadores técnicos.
 
-En cada funcionalidad eliges el proveedor con el selector de la propia página; la elección se guarda en tu navegador.
+En cada funcionalidad eliges el proveedor con el selector de la propia página; la elección se guarda en tu navegador. Si aún no has elegido ninguno, se usa el proveedor por defecto cuando tienes su API key configurada y, si no, el primero que tengas configurado.
 
 ---
 
@@ -50,8 +49,7 @@ En cada funcionalidad eliges el proveedor con el selector de la propia página; 
 | **Estilos**        | Tailwind CSS         | 4.x     |
 | **Componentes UI** | shadcn/ui            | Latest  |
 | **Iconos**         | Lucide React         | Latest  |
-| **Validación**     | Zod                  | Latest  |
-| **IA Framework**   | Google Genkit        | 1.26.0  |
+| **Tests**          | Vitest               | 3.x     |
 
 ### Proveedores de IA
 
@@ -62,37 +60,7 @@ En cada funcionalidad eliges el proveedor con el selector de la propia página; 
 | **Anthropic Claude** | `claude-opus-5-5`  | Análisis técnico y búsqueda de noticias (web search) |
 | **OpenAI**           | `gpt-6-astra`      | Análisis técnico y búsqueda de noticias (web search) |
 
-Todas las llamadas se hacen desde el navegador con la API key de cada usuario (BYOK). Los adaptadores de cada proveedor están en `src/services/chart/` y `src/services/news/`, y el registro de proveedores en `src/lib/providers.ts`.
-
-### Estructura de Directorios
-
-```
-src/
-├── app/                    # App Router de Next.js
-│   ├── api/
-│   │   └── busqueda/       # Endpoint de búsqueda de noticias
-│   ├── busqueda-avanzada/  # Página de búsqueda con IA
-│   ├── analisis-tecnico/   # Página de análisis de gráficos
-│   ├── error.tsx           # Error boundary
-│   └── layout.tsx          # Layout raíz
-├── ai/
-│   ├── genkit.ts           # Configuración de Google Genkit
-│   └── flows/              # Flujos de IA
-│       └── technical-analysis-flow.ts
-├── components/
-│   ├── ui/                 # Componentes shadcn/ui
-│   └── shared/             # Componentes compartidos
-├── hooks/
-│   └── useNewsSearch.ts    # Hook para búsqueda de noticias
-├── lib/
-│   ├── constants.ts        # Constantes y configuración
-│   ├── env.ts              # Validación de variables de entorno
-│   ├── logger.ts           # Logger estructurado
-│   ├── rate-limit.ts       # Rate limiter
-│   └── utils.ts            # Utilidades (cn)
-└── types/
-    └── index.ts            # Definiciones de tipos TypeScript
-```
+Todas las llamadas se hacen desde el navegador con la API key de cada usuario (BYOK); no hay backend propio ni endpoints de API. Los adaptadores de cada proveedor están en `src/services/chart/` y `src/services/news/`, y el registro de proveedores en `src/lib/providers.ts`. Ver [Estructura del Proyecto](#estructura-del-proyecto).
 
 ---
 
@@ -102,14 +70,11 @@ src/
 
 - **Server Components por defecto**: Reduce el JavaScript enviado al cliente, mejorando el Time to First Byte (TTFB) y el SEO
 - **Streaming y Suspense**: Renderizado progresivo para una experiencia de usuario más fluida
-- **API Routes integradas**: Backend y frontend unificados en un solo deployment
-- **Edge Runtime Ready**: Preparado para ejecución en edge functions con latencia mínima
-- **Caché automático**: Optimización de fetch requests con revalidación inteligente
+- **Despliegue sencillo**: Toda la app se despliega como un único proyecto en Vercel
 
 ### React 19
 
 - **Concurrent Features**: Renderizado no bloqueante para interfaces más responsivas
-- **Server Actions**: Mutaciones de datos simplificadas sin API endpoints adicionales
 - **Automatic Batching mejorado**: Menor cantidad de re-renders
 
 ### TypeScript Strict Mode
@@ -126,19 +91,11 @@ src/
 - **Design tokens consistentes**: Sistema de diseño coherente
 - **JIT compiler**: Compilación instantánea durante desarrollo
 
-### Zod para Validación
+### Adaptadores por proveedor
 
-- **Schema-first validation**: Un único source of truth para tipos y validación
-- **Runtime safety**: Validación de datos externos (APIs, formularios)
-- **Mensajes de error descriptivos**: Feedback claro para debugging
-- **Integración TypeScript**: Inferencia de tipos automática desde schemas
-
-### Google Genkit
-
-- **Abstracción de proveedores**: Facilita cambiar entre modelos de IA
-- **Flujos tipados**: Input/output con type safety completo
-- **Observabilidad integrada**: Tracing y métricas out-of-the-box
-- **Testing simplificado**: Flujos fáciles de testear unitariamente
+- **Puertos comunes**: Cada funcionalidad define un contrato (`src/services/chart/types.ts`, `src/services/news/types.ts`) que implementan todos sus proveedores
+- **Añadir un proveedor**: Basta con un nuevo adaptador y registrarlo en `src/lib/providers.ts`
+- **Testing simplificado**: Los adaptadores se prueban con clientes simulados (Vitest)
 
 ---
 
@@ -213,9 +170,7 @@ Ver documentación completa: [docs/PROMPT_ENGINEERING.md](docs/PROMPT_ENGINEERIN
 ## Seguridad
 
 - **Headers HTTP**: HSTS, X-Frame-Options, CSP, X-XSS-Protection
-- **Validación**: Zod para inputs (ticker, imágenes, env vars)
-- **Rate Limiting**: 10 req/min con headers informativos
-- **Logging seguro**: Sanitización de datos sensibles
+- **Validación de API keys**: Comprobación del formato de cada key antes de guardarla
 - **API Keys (BYOK)**: cada usuario introduce sus propias keys en `/configuracion`; se guardan solo en su navegador (localStorage) y se envían directamente a cada proveedor
 
 Ver documentación completa: [docs/SECURITY.md](docs/SECURITY.md)
@@ -237,8 +192,8 @@ Ver documentación completa: [docs/SECURITY.md](docs/SECURITY.md)
 1. **Clonar el repositorio**
 
 ```bash
-git clone https://github.com/tu-usuario/projectia.git
-cd projectia
+git clone https://github.com/AlvaroQ/chart-analyzer-and-stock-news.git
+cd chart-analyzer-and-stock-news
 ```
 
 2. **Instalar dependencias**
@@ -275,20 +230,22 @@ http://localhost:3000
 
 ### Búsqueda Avanzada de Noticias
 
-1. Navegar a `/busqueda-avanzada`
-2. Ingresar el ticker de la acción (ej: `AAPL`, `TSLA`, `NVDA`)
-3. Hacer clic en "Buscar"
-4. Revisar las noticias categorizadas por nivel de impacto
+1. Configurar al menos una API key de noticias en `/configuracion`
+2. Navegar a `/busqueda-avanzada` y elegir el proveedor en el selector
+3. Ingresar el ticker de la acción (ej: `AAPL`, `TSLA`, `NVDA`)
+4. Hacer clic en "Buscar"
+5. Revisar las noticias categorizadas por nivel de impacto
 
 ### Análisis Técnico de Gráficos
 
-1. Navegar a `/analisis-tecnico`
-2. Subir una imagen de gráfico de velas japonesas:
+1. Configurar al menos una API key de análisis técnico en `/configuracion`
+2. Navegar a `/analisis-tecnico` y elegir el proveedor en el selector
+3. Subir una imagen de gráfico de velas japonesas:
    - Arrastrar y soltar
    - Pegar desde portapapeles (Ctrl+V)
    - Seleccionar archivo manualmente
-3. Esperar el análisis de la IA
-4. Revisar resultados en las pestañas:
+4. Esperar el análisis de la IA
+5. Revisar resultados en las pestañas:
    - **Análisis**: Tendencia y patrones
    - **Niveles**: Soportes y resistencias
    - **Indicadores**: RSI y MACD
@@ -299,95 +256,46 @@ http://localhost:3000
 
 ---
 
-## API Reference
-
-### POST `/api/busqueda`
-
-Busca noticias financieras para un ticker específico.
-
-**Request:**
-
-```typescript
-{
-  "ticker": "AAPL"  // 1-10 caracteres, alfanumérico
-}
-```
-
-**Response (200 OK):**
-
-```typescript
-{
-  "ticker": "AAPL",
-  "news": [
-    {
-      "title": "Apple reporta récord de ingresos en Q4",
-      "summary": "La compañía superó expectativas con...",
-      "date": "2024-12-10",
-      "source": "Reuters",
-      "url": "https://reuters.com/...",
-      "impact_level": "HIGH",
-      "tags": ["earnings", "market"]
-    }
-  ],
-  "usage": {
-    "prompt_tokens": 150,
-    "completion_tokens": 800,
-    "total_tokens": 950
-  }
-}
-```
-
-**Errores:**
-
-| Código | Descripción                |
-| ------ | -------------------------- |
-| 400    | Ticker inválido            |
-| 429    | Rate limit excedido        |
-| 500    | Error interno del servidor |
-| 504    | Timeout de la API externa  |
-
-**Headers de Caché:**
-
-```
-Cache-Control: public, s-maxage=300, stale-while-revalidate=60
-```
-
----
-
 ## Estructura del Proyecto
 
 ```
-ProyectIA/
+chart-analyzer-and-stock-news/
 ├── src/
 │   ├── app/                       # Next.js App Router
-│   │   ├── api/busqueda/route.ts  # API de búsqueda
-│   │   ├── busqueda-avanzada/     # Página de búsqueda
-│   │   ├── analisis-tecnico/      # Página de análisis
-│   │   ├── layout.tsx             # Layout principal
 │   │   ├── page.tsx               # Landing page
+│   │   ├── busqueda-avanzada/     # Página de búsqueda de noticias
+│   │   ├── analisis-tecnico/      # Página de análisis de gráficos
+│   │   ├── configuracion/         # Gestión de API keys (BYOK)
+│   │   ├── layout.tsx             # Layout principal
 │   │   ├── error.tsx              # Error boundary
+│   │   ├── global-error.tsx       # Error boundary global
 │   │   └── not-found.tsx          # Página 404
-│   ├── ai/
-│   │   ├── genkit.ts              # Config de Genkit
-│   │   └── flows/
-│   │       └── technical-analysis-flow.ts
+│   ├── services/
+│   │   ├── chart/                 # Adaptadores de análisis técnico (Gemini, Claude, OpenAI)
+│   │   ├── news/                  # Adaptadores de noticias (Perplexity, Claude, OpenAI)
+│   │   └── clients/               # Clientes de Anthropic y OpenAI
 │   ├── components/
 │   │   ├── ui/                    # shadcn/ui
-│   │   └── shared/                # Componentes comunes
+│   │   ├── shared/                # Componentes comunes (ProviderSelector, ApiKeyInput...)
+│   │   └── providers/             # Providers de React
+│   ├── context/
+│   │   └── ApiKeysContext.tsx     # Estado de las API keys
 │   ├── hooks/
-│   │   └── useNewsSearch.ts       # Hook de búsqueda
+│   │   ├── useNewsSearch.ts       # Hook de búsqueda de noticias
+│   │   └── useTechnicalAnalysis.ts # Hook de análisis técnico
 │   ├── lib/
+│   │   ├── providers.ts           # Registro de proveedores
+│   │   ├── provider-preferences.ts # Proveedor elegido por funcionalidad
+│   │   ├── api-keys-storage.ts    # Persistencia de keys en localStorage
+│   │   ├── api-keys-validation.ts # Validación de formato de keys
 │   │   ├── constants.ts           # Configuración
-│   │   ├── env.ts                 # Validación de env
-│   │   ├── logger.ts              # Logger
-│   │   ├── rate-limit.ts          # Rate limiter
-│   │   └── utils.ts               # Utilidades
-│   └── types/
-│       └── index.ts               # Tipos TypeScript
-├── public/                        # Assets estáticos
-├── .env.local                     # Variables de entorno (no commitear)
-├── next.config.ts                 # Config de Next.js
-├── tailwind.config.ts             # Config de Tailwind
+│   │   └── utils.ts               # Utilidades (cn)
+│   └── types/                     # Tipos TypeScript
+├── tests/                         # Tests (Vitest)
+├── docs/                          # Prompt engineering y seguridad
+├── assets/                        # Capturas del README
+├── next.config.ts                 # Config de Next.js (headers de seguridad)
+├── vitest.config.ts               # Config de Vitest
 ├── tsconfig.json                  # Config de TypeScript
 ├── package.json                   # Dependencias
 ├── CLAUDE.md                      # Instrucciones para Claude
@@ -408,7 +316,6 @@ Desarrollado con tecnologías de:
 - [Next.js](https://nextjs.org/) - Framework React
 - [Tailwind CSS](https://tailwindcss.com/) - Framework CSS
 - [shadcn/ui](https://ui.shadcn.com/) - Componentes UI
-- [Google Genkit](https://firebase.google.com/docs/genkit) - Framework IA
 - [Perplexity AI](https://www.perplexity.ai/) - Búsqueda con IA
 - [Google Gemini](https://deepmind.google/technologies/gemini/) - Modelo multimodal
 - [Anthropic Claude](https://www.anthropic.com/claude) - Modelo multimodal con búsqueda web
