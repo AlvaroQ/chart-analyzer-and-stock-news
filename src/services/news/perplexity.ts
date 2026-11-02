@@ -29,6 +29,7 @@ export const searchWithPerplexity: NewsAdapter = async (apiKey, ticker) => {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'X-Pplx-Integration': 'chart-analyzer-and-stock-news',
       },
       body: JSON.stringify({
         model: API_CONFIG.PERPLEXITY.MODEL,
